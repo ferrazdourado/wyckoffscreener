@@ -1,0 +1,35 @@
+[project]
+name = "wyckoff-screener"
+version = "0.1.0"
+description = "Screener Wyckoff semanal (B3 + NYSE/Nasdaq)"
+requires-python = ">=3.11"
+dependencies = [
+    "yfinance>=0.2",
+    "pandas>=2.0",
+    "numpy>=1.24",       # backtest (R11) e P&F (R10) leem colunas em array
+    "pyyaml>=6.0",
+    "jinja2>=3.1",      # templates do relatório (R8)
+    "mplfinance>=0.12", # gráficos semanais anotados (R8)
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+# P2 — extras opcionais. Nada aqui é necessário para a rotina semanal:
+#   dashboard  `wyckoff dashboard` (Streamlit lendo o mesmo SQLite)
+#   pdf        motor alternativo de PDF, para máquina sem Chrome/Chromium
+#              (weasyprint exige pango/cairo instalados no sistema)
+dashboard = ["streamlit>=1.30"]
+pdf = ["weasyprint>=60"]
+
+[project.scripts]
+wyckoff = "src.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["src*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

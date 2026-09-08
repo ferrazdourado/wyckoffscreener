@@ -1,0 +1,139 @@
+# Universos de varredura do screener (R12).
+#
+# ATENÇÃO: esta NÃO é a carteira teórica oficial do IBOV. É uma lista inicial de
+# papéis líquidos da B3 para o screener ter o que varrer no primeiro dia. A
+# composição oficial muda a cada quadrimestre e sai na B3
+# (b3.com.br -> Índices -> IBOV -> Composição da carteira); mantenha esta lista
+# você mesmo, ou aponte `--universe-file` para outro arquivo.
+#
+# Ticker de B3 morre: fusão, migração de bolsa, mudança de código. Em 07/09/2026
+# dez dos setenta nomes da primeira versão desta lista já não respondiam — entre
+# eles EMBR3, que a própria spec §8 registra como tendo virado EMBJ3 em 2025.
+# Foram trocados por papéis conferidos um a um contra a fonte (não por sucessão
+# societária presumida: são só tickers líquidos que responderam).
+# `wyckoff universe --check` refaz essa conferência quando você quiser.
+#
+# Estrutura de cada universo:
+#   market     b3 | us          (o mesmo para todos os papéis do bloco)
+#   benchmark  índice de referência da força relativa
+#   tickers    símbolos no formato do yfinance
+
+universes:
+  b3_liquidas:
+    market: b3
+    benchmark: ^BVSP
+    tickers:
+      - ABEV3.SA
+      - ALOS3.SA
+      - ASAI3.SA
+      - AURE3.SA
+      - AZUL3.SA
+      - B3SA3.SA
+      - BBAS3.SA
+      - BBDC3.SA
+      - BBDC4.SA
+      - BBSE3.SA
+      - BPAC11.SA
+      - BRAP4.SA
+      - BRAV3.SA
+      - BRKM5.SA
+      - CBAV3.SA
+      - CMIG4.SA
+      - CMIN3.SA
+      - COGN3.SA
+      - CPFE3.SA
+      - CPLE3.SA
+      - CSAN3.SA
+      - CSMG3.SA
+      - CSNA3.SA
+      - CVCB3.SA
+      - CYRE3.SA
+      - DIRR3.SA
+      - EGIE3.SA
+      - EMBJ3.SA
+      - ENEV3.SA
+      - ENGI11.SA
+      - EQTL3.SA
+      - EZTC3.SA
+      - FLRY3.SA
+      - GGBR4.SA
+      - GMAT3.SA
+      - GOAU4.SA
+      - HAPV3.SA
+      - HYPE3.SA
+      - IGTI11.SA
+      - IRBR3.SA
+      - ITSA4.SA
+      - ITUB4.SA
+      - KLBN11.SA
+      - LREN3.SA
+      - MGLU3.SA
+      - MOTV3.SA
+      - MRVE3.SA
+      - MULT3.SA
+      - NATU3.SA
+      - PCAR3.SA
+      - PETR3.SA
+      - PETR4.SA
+      - POMO4.SA
+      - PRIO3.SA
+      - PSSA3.SA
+      - RADL3.SA
+      - RAIL3.SA
+      - RDOR3.SA
+      - RECV3.SA
+      - RENT3.SA
+      - SANB11.SA
+      - SBSP3.SA
+      - SLCE3.SA
+      - SMTO3.SA
+      - SUZB3.SA
+      - TAEE11.SA
+      - TIMS3.SA
+      - TOTS3.SA
+      - TTEN3.SA
+      - UGPA3.SA
+      - USIM5.SA
+      - VALE3.SA
+      - VAMO3.SA
+      - VBBR3.SA
+      - VIVA3.SA
+      - VIVT3.SA
+      - WEGE3.SA
+      - YDUQ3.SA
+
+  us_large:
+    market: us
+    benchmark: ^GSPC
+    tickers:
+      - AAPL
+      - ABBV
+      - AMZN
+      - BAC
+      - CAT
+      - CSCO
+      - CVX
+      - DIS
+      - GOOGL
+      - HD
+      - INTC
+      - JNJ
+      - JPM
+      - KO
+      - MCD
+      - MDLZ
+      - META
+      - MRK
+      - MSFT
+      - NKE
+      - NVDA
+      - PEP
+      - PFE
+      - PG
+      - SBUX
+      - T
+      - UNH
+      - V
+      - VZ
+      - WMT
+      - XOM

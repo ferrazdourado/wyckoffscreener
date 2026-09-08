@@ -1,0 +1,143 @@
+# Wyckoff Screener — semana {{ tag }}
+
+Semana analisada: **{{ week_start.strftime('%d/%m/%Y') }}** (candle semanal fechado) ·
+gerado em {{ generated_at.strftime('%d/%m/%Y %H:%M') }} ·
+{{ rows|length }} papéis
+
+## 1. Alertas de invalidação
+
+{% if invalidations %}
+{% for a in invalidations %}
+- {% if a.is_new %}**[NOVO]**{% else %}[há {{ a.weeks_violated|semanas }}]{% endif %} {{ a.summary }}
+{% endfor %}
+{% else %}
+Nenhum nível de invalidação violado.
+{% endif %}
+{% if levels_configured < levels_total %}
+
+> {{ levels_total - levels_configured }} de {{ levels_total }} papéis ainda **sem nível de
+> invalidação** na watchlist — para esses, esta seção não pode alertar nada.
+{% endif %}
+
+{% if calendar %}
+### Agenda dos próximos {{ calendar_horizon }} dias
+
+{% for symbol, event, days in calendar %}
+- **{{ symbol }}** — {{ event.date.strftime('%d/%m') }} ({% if days == 0 %}hoje{% elif days == 1 %}amanhã{% else %}em {{ days }} dias{% endif %}): {{ event.label }}
+{% endfor %}
+{% endif %}
+
+## 2. Eventos da semana
+
+{% if week_events %}
+{% for item in week_events %}
+### {{ item.symbol }} — {{ item.event.label }}{% if not item.event.confirmed %} (não confirmado){% endif +%}
+
+{{ item.event.summary }}
+
+{% for line in item.event.audit_lines() %}
+- {{ line }}
+{% endfor %}
+{% endfor %}
+{% else %}
+Nenhum evento Wyckoff disparado na semana de {{ week_start.strftime('%d/%m/%Y') }}.
+{% endif %}
+
+## 3. Watchlist
+
+| ticker | fase | viés | sem. | vol/méd | {% for l in rs_labels %}{{ l }} | {% endfor %}range | fech. | invalid. | próximo evento esperado |
+|---|---|---|---:|---:|{% for l in rs_labels %}---:|{% endfor %}---|---:|---:|---|
+{% for r in rows %}
+| {% if r.violated %}**{{ r.symbol }}** ⚠{% else %}{{ r.symbol }}{% endif %} | {{ r.phase }} | {{ r.bias }} | {{ r.weeks_in_phase }} | {{ r.volume_ratio }} | {% for v in r.rs %}{{ v }} | {% endfor %}{{ r.range }}{% if not r.range_active and r.range != '—' %} (encerrado){% endif %} | {{ r.close }} | {{ r.invalidation }}{% if r.invalidation_gap != '—' %} ({{ r.invalidation_gap }}){% endif %} | {{ r.pending }} |
+{% endfor %}
+
+*vol/méd = volume da semana / média de {{ params.volume_sma_weeks }} semanas ·
+FR = força relativa contra o índice · sem. = semanas na fase atual ·
+invalid. = nível de invalidação (folga até ele)*
+
+## 4. Papel a papel
+
+{% for s in sections %}
+### {{ s.symbol }} — {{ s.analysis.phase.label }}
+
+{% if s.chart_rel %}
+![{{ s.symbol }}]({{ tag }}/charts/{{ s.chart_path.name }})
+{% endif %}
+
+**Fase:** {{ s.analysis.phase.label }}, há {{ s.analysis.phase.weeks_in_phase(s.analysis.closed|length)|semanas }}
+(desde {{ s.analysis.phase.since_date.strftime('%d/%m/%Y') }}).
+**Gatilho:** {{ s.analysis.phase.reason }}
+**Próximo evento esperado:** {{ s.analysis.phase.pending }}
+
+{% if s.analysis.governing_range %}
+**Range:** {{ s.analysis.governing_range.describe() }}{% if not s.analysis.active_range %} — encerrado em {{ s.analysis.governing_range.end_date.strftime('%d/%m/%Y') }}{% endif +%}
+{% else %}
+**Range:** nenhum em vigor.
+{% endif %}
+
+{% if s.analysis.latest is not none %}
+**Última semana fechada ({{ s.analysis.latest.name.strftime('%d/%m/%Y') }}):**
+fech. {{ s.analysis.value('close')|fmt }} ·
+volume {{ s.analysis.value('volume_ratio')|fmt('{:.2f}×') }} a média de {{ params.volume_sma_weeks }}s ·
+spread {{ s.analysis.value('spread_ratio')|fmt('{:.2f}×') }} o ATR{{ params.atr_weeks }} ·
+fechamento a {{ s.analysis.value('close_position')|fmt('{:.0%}') }} do candle{% for label, value in s.rs %} · {{ label }} {{ value }}{% endfor %}
+{% endif %}
+
+{% if s.cause %}
+**Contagem de causa (P&F):** {{ s.cause.describe() }}
+{% for line in s.cause.audit_lines() %}
+  - {{ line }}
+{% endfor %}
+{% endif %}
+{% if s.analysis.item.invalidation %}
+**Invalidação:** {{ s.analysis.item.invalidation.describe() }}{% if s.analysis.alert %} — **VIOLADA** ({{ s.analysis.alert.weeks_violated }} semana(s)){% else %} — folga de {{ s.analysis.invalidation_gap|fmt('{:+.1%}') }}{% endif +%}
+{% endif %}
+{% if s.analysis.item.notes %}
+**Notas:** {{ s.analysis.item.notes }}
+{% endif %}
+{% if s.calendar %}
+**Agenda:** {% for event, days in s.calendar %}{{ event.date.strftime('%d/%m') }} {{ event.label }} (em {{ days }}d){% if not loop.last %} · {% endif %}{% endfor %}
+{% endif %}
+{% for w in s.analysis.warnings %}
+> Aviso: {{ w }}
+{% endfor %}
+
+{% if s.detailed_events %}
+**Eventos nas últimas {{ params.chart_weeks }} semanas** (os do gráfico){% if s.hidden_events %}, mais {{ s.hidden_events }} anteriores fora da janela{% endif %}:
+
+{% for e in s.detailed_events %}
+- **{{ e.date.strftime('%d/%m/%Y') }} — {{ e.label }}**{% if not e.confirmed %} *(não confirmado)*{% endif %} — {{ e.summary }}
+  {% for line in e.audit_lines() %}
+  - {{ line }}
+  {% endfor %}
+{% endfor %}
+{% else %}
+Nenhum evento detectado na janela do gráfico.
+{% endif %}
+
+{% endfor %}
+
+## 5. Erros de coleta
+
+{% if problems %}
+{% for p in problems %}
+- **{{ p.symbol }}** ({{ p.origem }}): {{ p.message }}
+{% endfor %}
+{% else %}
+Nenhum erro de coleta.
+{% endif %}
+{% if partials %}
+
+**Semana em formação (excluída da análise):** {% for p in partials %}{{ p.symbol }} ({{ p.week.strftime('%d/%m') }}){% if not loop.last %}, {% endif %}{% endfor %}
+{% endif %}
+
+---
+
+A contagem de causa (P&F) é estimativa de ordem de grandeza, não preço-alvo:
+projeta o efeito a partir da largura do range e não conhece nada do que
+acontece fora dele.
+
+Parâmetros: volume SMA {{ params.volume_sma_weeks }}s · ATR {{ params.atr_weeks }}s ·
+range mínimo {{ params.range_min_weeks }}s com dispersão ≤ {{ '%.0f'|format(params.range_dispersion * 100) }}%.
+
+*{{ disclaimer }}*

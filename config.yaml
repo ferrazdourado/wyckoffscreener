@@ -1,0 +1,240 @@
+# Wyckoff Screener — parâmetros das heurísticas.
+# Nada de threshold hardcoded no código: tudo vem daqui.
+# Fase 1 usa as seções `data`, `metrics` e `output`.
+# Fase 2 usa `ranges`, `events`, `phases`, `alerts` e o resto de `output`.
+# Fase 3 usa `notify`, `screener`, `pnf` e `backtest`.
+
+data:
+  # Histórico mínimo pedido pela spec (R2): 120 semanas.
+  history_weeks: 120
+  # Semanas mínimas para considerar as métricas confiáveis (warm-up das médias).
+  min_weeks_for_metrics: 21
+  cache_path: data/wyckoff.sqlite
+  # Se já houve fetch bem-sucedido hoje, reusa o cache (R2: não rebaixar no mesmo dia).
+  refetch_same_day: false
+  # Horário de fechamento do pregão por mercado, usado para saber se a
+  # semana corrente já fechou (R2: sinalizar candle semanal não fechado).
+  market_hours:
+    b3:
+      timezone: America/Sao_Paulo
+      close: "18:00"
+    us:
+      timezone: America/New_York
+      close: "16:00"
+
+  # --- P2: fonte de dados plugável -----------------------------------------
+  # `default` atende todo mundo. `by_market` troca a fonte de um mercado só
+  # (brapi.dev é B3-only: papel americano tem de continuar no yfinance).
+  # `fallback` é tentado, na ordem, quando a fonte principal ERRA — não quando
+  # a série parece ter buraco: trocar de fonte no meio de uma série sem avisar
+  # esconderia justamente o problema que a §8 quer investigar.
+  # Compare as duas com `wyckoff sources TICKER` antes de mudar isto.
+  source:
+    default: yfinance      # yfinance | brapi
+    by_market: {}          # ex.: {b3: brapi}
+    fallback: []           # ex.: [brapi]
+  brapi:
+    # SEGREDO NÃO ENTRA AQUI — só o NOME da variável de ambiente:
+    #   export WYCKOFF_BRAPI_TOKEN='...'   (token gratuito em brapi.dev)
+    # Sem token a fonte atende poucos papéis (em 08/09/2026: PETR4, VALE3,
+    # ITUB4, MGLU3); o resto e o ^BVSP devolvem 401.
+    token_env: WYCKOFF_BRAPI_TOKEN
+    base_url: https://brapi.dev/api
+    timeout: 20
+    # Teto da janela pedida à API: 10y/max podem ser de plano pago.
+    max_range: 5y
+  # Tolerâncias de `wyckoff sources`: abaixo disto é arredondamento da fonte,
+  # não divergência que mude a leitura do candle.
+  compare:
+    tolerance_pct: 0.005
+    volume_tolerance_pct: 0.01
+    max_rows: 12
+
+metrics:
+  volume_sma_weeks: 20
+  atr_weeks: 20
+  # sma = média simples do True Range | wilder = suavização de Wilder
+  atr_method: sma
+  relative_strength_weeks: [4, 12]
+  # Candle com high == low (sem range): posição do fechamento indefinida.
+  # neutral = 0.5 | nan = deixa vazio
+  close_position_on_zero_range: neutral
+
+output:
+  csv_dir: exports
+  reports_dir: reports
+  # Casas decimais nas colunas derivadas do CSV/tabela.
+  decimals: 3
+  # Semanas de candle desenhadas no gráfico de cada papel (R8).
+  chart_weeks: 60
+  # true = HTML autocontido (PNG em base64), bom para mandar pro celular.
+  # false = HTML referencia os PNGs em reports/AAAA-SS/charts/.
+  embed_charts: true
+
+  # --- P2: exportação para PDF ----------------------------------------------
+  # Conversão do HTML já gerado (`wyckoff report --pdf` ou `wyckoff pdf`).
+  pdf:
+    # Motores tentados nesta ordem; o primeiro que existir na máquina vence.
+    # chrome = Chrome/Chromium/Edge headless (nada a instalar se já tem o
+    # navegador); weasyprint = biblioteca Python; wkhtmltopdf = binário legado.
+    engines: [chrome, weasyprint, wkhtmltopdf]
+    # Vazio = procura o navegador sozinho (PATH e instalações conhecidas).
+    chrome_binary: ""
+    timeout: 120
+    # No papel não há o que clicar: abre os números que justificam cada sinal
+    # antes de imprimir. A tela continua com eles recolhidos.
+    expand_details: true
+
+# --- R4: detecção de trading range ---------------------------------------
+ranges:
+  # Lateralização = N semanas consecutivas com dispersão de fechamentos baixa.
+  min_weeks: 8
+  # (max(close) - min(close)) / média(close) dentro da janela.
+  max_close_dispersion_pct: 0.12
+  # Depois que um range termina, por quantas semanas ele ainda governa a
+  # leitura (um SOS/LPS de Fase D acontece na borda ou logo acima do range).
+  max_gap_weeks: 8
+  # Tolerância ao encaixar um range manual da watchlist sobre os candles:
+  # fração da largura do range que a barra pode extrapolar e ainda contar
+  # como "dentro" (springs e upthrusts precisam caber).
+  manual_overlap_tolerance: 0.10
+
+# --- R5: regras dos eventos ----------------------------------------------
+events:
+  selling_climax:
+    min_spread_atr: 1.5
+    min_volume_ratio: 2.0
+    # "após tendência de baixa": janela e queda mínima que a definem.
+    trend_weeks: 8
+    max_trend_return: -0.10
+  buying_climax:            # espelho de distribuição
+    min_spread_atr: 1.5
+    min_volume_ratio: 2.0
+    trend_weeks: 8
+    min_trend_return: 0.10
+  spring:
+    max_volume_ratio: 1.2
+    # Fechamento volta acima do suporte em até N candles DEPOIS do spring
+    # (0 = tem de fechar de volta no próprio candle).
+    recovery_within_candles: 2
+    # Calibre de R11. 1 = regra literal da spec (qualquer nova mínima do range
+    # conta como perfuração do suporte). 2+ exige que o suporte já tenha sido
+    # testado antes — nos dados de 07/09/2026 isso descarta 7 dos 42 springs.
+    min_support_touches: 1
+    touch_tolerance_atr: 0.5
+  test:
+    # Janela de busca do teste depois do spring.
+    within_weeks: 6
+    # A mínima do teste não pode estar mais longe do que isto da mínima do
+    # spring (em ATR) — teste é reaproximação do suporte, não qualquer recuo.
+    max_distance_to_spring_low_atr: 1.0
+  sos:
+    min_spread_atr: 1.3
+    min_volume_ratio: 1.5
+    min_close_position: 0.6667
+    # "resistência interna" = máxima das N semanas anteriores.
+    internal_resistance_weeks: 4
+  sow:                      # espelho de distribuição do SOS
+    min_spread_atr: 1.3
+    min_volume_ratio: 1.5
+    max_close_position: 0.3333
+    internal_support_weeks: 4
+  lps:
+    min_declining_weeks: 2
+    within_weeks: 8
+  lpsy:                     # espelho de distribuição do LPS
+    min_declining_weeks: 2
+    within_weeks: 8
+  upthrust:
+    min_volume_ratio: 1.5
+    # Range com esta idade ou mais: o upthrust é lido como UTAD (Fase C).
+    utad_min_range_weeks: 12
+    # Espelho do calibre do spring (ver acima).
+    min_resistance_touches: 1
+    touch_tolerance_atr: 0.5
+  effort_vs_result:
+    min_volume_ratio: 1.5
+    max_progress_atr: 0.5
+
+# --- R6: máquina de estados de fase --------------------------------------
+phases:
+  # Retorno nas N semanas anteriores ao início do range que define o viés
+  # (queda -> candidato a acumulação; alta -> a distribuição).
+  bias_lookback_weeks: 8
+  bias_min_return: 0.08
+  # Semanas de fechamento fora do range para declarar Fase E (markup/markdown).
+  breakout_confirm_weeks: 2
+
+# --- R7: invalidação e calendário ----------------------------------------
+alerts:
+  calendar_horizon_days: 14
+  # Semanas para trás em que um evento conta como "evento da semana" no topo
+  # do relatório (1 = só a última semana fechada).
+  recent_event_weeks: 1
+
+# --- R9: notificação do resumo semanal ------------------------------------
+# Nada é enviado sem pedido explícito: `enabled: false` aqui e, mesmo ligado,
+# só `wyckoff notify` ou `wyckoff report --notify` disparam mensagem.
+# SEGREDOS NÃO ENTRAM NESTE ARQUIVO — o config guarda o NOME da variável de
+# ambiente, e o código lê o valor de lá.
+notify:
+  enabled: false
+  backend: telegram        # telegram | email
+  max_chars: 4096          # limite de uma mensagem do Telegram
+  telegram:
+    #   export WYCKOFF_TELEGRAM_TOKEN='123456:ABC...'
+    #   export WYCKOFF_TELEGRAM_CHAT_ID='987654321'
+    token_env: WYCKOFF_TELEGRAM_TOKEN
+    chat_id_env: WYCKOFF_TELEGRAM_CHAT_ID
+  email:
+    host: smtp.gmail.com
+    port: 587
+    use_tls: true
+    #   export WYCKOFF_SMTP_USER='voce@gmail.com'
+    #   export WYCKOFF_SMTP_PASSWORD='senha de app, não a da conta'
+    user_env: WYCKOFF_SMTP_USER
+    password_env: WYCKOFF_SMTP_PASSWORD
+    sender: ""             # vazio = usa o próprio usuário do SMTP
+    to: []
+    subject_prefix: "[Wyckoff]"
+
+# --- R12: screener de novos candidatos ------------------------------------
+screener:
+  universe_path: universe.yaml
+  default_universe: b3_liquidas
+  # Fases que interessam num candidato. A spec pede C/D; B entra se você
+  # quiser acompanhar a causa sendo construída antes do gatilho.
+  phases: [C, D]
+  top: 25
+
+# --- R10: contagem de causa (Ponto & Figura) ------------------------------
+# Estimativa grosseira: o insumo é o candle SEMANAL, não intradiário. Serve
+# para ordem de grandeza do alvo, não para preço-alvo.
+pnf:
+  enabled: true
+  # percent = grade geométrica (o box vale a mesma % em qualquer preço; é o que
+  #           faz sentido comparando papel de R$ 8 com papel de R$ 280)
+  # atr     = box proporcional à volatilidade do papel
+  # absolute= box fixo em reais/dólares
+  box_mode: percent
+  box_percent: 0.02
+  box_atr_fraction: 0.25
+  box_absolute: 1.0
+  reversal: 3
+  # Onde a contagem horizontal é feita:
+  #   widest = linha mais larga da congestão (clássica; contar na extremidade
+  #            subestima e o alvo sai aquém do preço)
+  #   support | resistance | mid | driver (nível do evento que instalou a fase)
+  count_line: widest
+
+# --- R11: backtest das heurísticas ----------------------------------------
+# Calibragem de threshold, NÃO backtest de estratégia: não há entrada, saída,
+# stop, custo nem dimensionamento. Leia sempre contra a linha `qualquer semana`.
+backtest:
+  horizons: [4, 8, 13, 26]
+  # true  = redetecta semana a semana usando só o passado (honesto, mais lento)
+  # false = detecção única sobre a série inteira (rápido, com lookahead no range)
+  causal: true
+  # Tipos com menos observações que isto não entram na tabela — n pequeno não
+  # calibra nada.
+  min_observations: 5

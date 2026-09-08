@@ -1,0 +1,301 @@
+"""Screener de novos candidatos (R12).
+
+Varre um universo amplo — os líquidos da B3, por exemplo — e ranqueia os papéis
+que estão nas fases que interessam. A leitura é a mesma da watchlist: os mesmos
+ranges de R4, os mesmos eventos de R5, a mesma máquina de R6. O screener não
+tem heurística própria; ele só aplica a de sempre em mais gente.
+
+**Ordenação léxica, não nota ponderada.** Um score com pesos arbitrários dá uma
+falsa precisão — "8,3" não quer dizer nada e ninguém consegue auditar de onde
+veio. A ordem aqui é explícita: primeiro a fase (D antes de C), depois quem teve
+evento mais recente, depois a força relativa. Cada critério aparece como coluna,
+então a posição de qualquer papel na lista é conferível a olho.
+
+**O universo é seu.** `universe.yaml` nasce com uma lista de partida, não com a
+carteira oficial do IBOV — ela muda a cada quadrimestre e sai na B3. Papel que
+não existe mais vira erro de coleta e não derruba a varredura.
+"""
+
+from __future__ import annotations
+
+import datetime as dt
+from dataclasses import dataclass, field
+from pathlib import Path
+
+import pandas as pd
+import yaml
+
+from .analysis import TickerAnalysis, analyze
+from .config import Config
+from .data.cache import Cache
+from .data.provider import DataProvider
+from .metrics import compute_metrics
+from .pipeline import SymbolStatus, fetch_all, flag_ex_dates
+from .watchlist import MARKETS, WatchItem, Watchlist
+
+# Ordem de interesse das fases. D (oferta/demanda no controle) vem antes de C
+# (teste) porque está mais perto da resolução; o resto não é candidato.
+PHASE_RANK = {"D": 3, "C": 2, "B": 1}
+
+
+class UniverseError(Exception):
+    """Universo inválido. A mensagem lista todos os problemas encontrados."""
+
+
+@dataclass(frozen=True)
+class Universe:
+    name: str
+    market: str
+    benchmark: str
+    tickers: tuple[str, ...]
+
+    def as_watchlist(self) -> Watchlist:
+        """Universo no formato que o resto do sistema já sabe consumir."""
+        return Watchlist(items=[
+            WatchItem(symbol=t, market=self.market, benchmark=self.benchmark)
+            for t in self.tickers
+        ])
+
+
+def parse_universes(raw, source: str = "universe.yaml") -> dict[str, Universe]:
+    """Valida o arquivo inteiro numa passada, como a watchlist de R1."""
+    erros: list[str] = []
+    if not isinstance(raw, dict):
+        raise UniverseError(f"{source}: raiz do arquivo deve ser um mapeamento com `universes`.")
+    blocos = raw.get("universes")
+    if blocos is None:
+        raise UniverseError(f"{source}: chave `universes` ausente.")
+    if not isinstance(blocos, dict) or not blocos:
+        raise UniverseError(f"{source}: `universes` deve ser um mapeamento não vazio.")
+
+    out: dict[str, Universe] = {}
+    for nome, bloco in blocos.items():
+        onde = f"universes.{nome}"
+        if not isinstance(bloco, dict):
+            erros.append(f"{onde}: esperado mapeamento com `market`, `benchmark` e `tickers`")
+            continue
+        market = bloco.get("market")
+        if market not in MARKETS:
+            erros.append(f"{onde}.market: esperado um de {list(MARKETS)}, recebido {market!r}")
+            continue
+        benchmark = bloco.get("benchmark")
+        if not isinstance(benchmark, str) or not benchmark.strip():
+            erros.append(f"{onde}.benchmark: esperado texto não vazio (ex.: ^BVSP)")
+            continue
+        tickers = bloco.get("tickers")
+        if not isinstance(tickers, list) or not tickers:
+            erros.append(f"{onde}.tickers: esperado uma lista não vazia")
+            continue
+
+        limpos: list[str] = []
+        vistos: set[str] = set()
+        for i, t in enumerate(tickers):
+            if not isinstance(t, str) or not t.strip():
+                erros.append(f"{onde}.tickers[{i}]: esperado texto não vazio")
+                continue
+            simbolo = t.strip().upper()
+            if market == "b3" and not simbolo.endswith(".SA"):
+                erros.append(f"{onde}.tickers[{i}] ({simbolo}): mercado `b3` exige sufixo `.SA`")
+                continue
+            if market == "us" and simbolo.endswith(".SA"):
+                erros.append(f"{onde}.tickers[{i}] ({simbolo}): sufixo `.SA` não vale para `us`")
+                continue
+            if simbolo in vistos:
+                erros.append(f"{onde}.tickers[{i}] ({simbolo}): símbolo duplicado")
+                continue
+            vistos.add(simbolo)
+            limpos.append(simbolo)
+        if limpos:
+            out[str(nome)] = Universe(str(nome), market, benchmark.strip(), tuple(limpos))
+
+    if erros:
+        joined = "\n  - ".join(erros)
+        raise UniverseError(f"{source}: {len(erros)} erro(s) de validação:\n  - {joined}")
+    return out
+
+
+def load_universes(path: str | Path = "universe.yaml") -> dict[str, Universe]:
+    path = Path(path)
+    if not path.exists():
+        raise UniverseError(f"{path}: arquivo não encontrado. Crie o universo antes de varrer.")
+    try:
+        raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except yaml.YAMLError as exc:
+        raise UniverseError(f"{path}: YAML inválido — {exc}") from exc
+    return parse_universes(raw, source=str(path))
+
+
+@dataclass
+class Candidate:
+    analysis: TickerAnalysis
+    weeks_since_event: int | None
+    last_event: object | None
+
+    @property
+    def symbol(self) -> str:
+        return self.analysis.symbol
+
+    @property
+    def phase_rank(self) -> int:
+        return PHASE_RANK.get(self.analysis.phase.letter or "", 0)
+
+    def rs(self, weeks: int) -> float | None:
+        value = self.analysis.value(f"rs_{weeks}w")
+        return None if value is None else float(value)
+
+    def sort_key(self, rs_weeks: int) -> tuple:
+        """Fase, depois recência do evento, depois força relativa. Nessa ordem."""
+        rs = self.rs(rs_weeks)
+        return (
+            -self.phase_rank,
+            self.weeks_since_event if self.weeks_since_event is not None else 10**6,
+            -(rs if rs is not None else -10.0),
+            self.symbol,
+        )
+
+
+@dataclass
+class ScreenResult:
+    universe: Universe
+    candidates: list[Candidate] = field(default_factory=list)
+    scanned: int = 0
+    problems: list[SymbolStatus] = field(default_factory=list)
+    phases: tuple[str, ...] = ()
+
+
+def _weeks_since_event(analysis: TickerAnalysis) -> tuple[int | None, object | None]:
+    """Semanas desde o último evento alinhado ao viés da fase atual.
+
+    Alinhado ao viés porque um upthrust não recomenda um candidato a acumulação
+    — contá-lo como "evento recente" empurraria o papel para cima da lista pelo
+    motivo errado.
+    """
+    bias = analysis.phase.bias
+    alinhados = [e for e in analysis.events if e.bias == bias]
+    if not alinhados:
+        return None, None
+    ultimo = alinhados[-1]
+    return len(analysis.closed) - 1 - ultimo.index, ultimo
+
+
+def screen(
+    universe: Universe,
+    config: Config,
+    cache: Cache,
+    phases: tuple[str, ...] = ("C", "D"),
+    limit: int | None = None,
+) -> ScreenResult:
+    """Ranqueia os papéis do universo que estão nas fases pedidas.
+
+    Lê só do cache — quem coleta é `refresh`. Assim a varredura pode ser
+    repetida à vontade (mexer em `--phases`, em thresholds do config) sem
+    bater na fonte de novo.
+    """
+    min_weeks = int(config.get("data.min_weeks_for_metrics", 21))
+    rs_windows = [int(w) for w in config.require("metrics.relative_strength_weeks")]
+    rs_weeks = rs_windows[-1] if rs_windows else 12
+
+    bench_bars = cache.get_bars(universe.benchmark)
+    resultado = ScreenResult(universe=universe, phases=tuple(phases))
+
+    for item in universe.as_watchlist():
+        bars = cache.get_bars(item.symbol)
+        if bars.empty:
+            resultado.problems.append(
+                SymbolStatus(item.symbol, "error", 0, "sem candles no cache")
+            )
+            continue
+        if len(bars) < min_weeks:
+            resultado.problems.append(
+                SymbolStatus(item.symbol, "error", len(bars),
+                             f"histórico curto: {len(bars)} semanas (< {min_weeks})")
+            )
+            continue
+        metrics = compute_metrics(bars, config, bench_bars if not bench_bars.empty else None)
+        metrics = flag_ex_dates(metrics, cache.get_actions(item.symbol, since=bars.index[0].date()))
+        analysis = analyze(item, metrics, config)
+        resultado.scanned += 1
+        if (analysis.phase.letter or "") not in phases:
+            continue
+        idade, ultimo = _weeks_since_event(analysis)
+        resultado.candidates.append(Candidate(analysis, idade, ultimo))
+
+    resultado.candidates.sort(key=lambda c: c.sort_key(rs_weeks))
+    if limit:
+        resultado.candidates = resultado.candidates[:limit]
+    return resultado
+
+
+def refresh(
+    universe: Universe,
+    config: Config,
+    provider: DataProvider,
+    cache: Cache,
+    force: bool = False,
+    now: dt.datetime | None = None,
+):
+    """Coleta os candles do universo. Falha de um papel não aborta os outros (R2)."""
+    return fetch_all(universe.as_watchlist(), config, provider, cache, force=force, now=now)
+
+
+def to_frame(result: ScreenResult, config: Config) -> pd.DataFrame:
+    """Ranking em tabela, com as colunas que justificam a ordem."""
+    rs_windows = [int(w) for w in config.require("metrics.relative_strength_weeks")]
+    linhas = []
+    for posicao, c in enumerate(result.candidates, start=1):
+        a = c.analysis
+        tr = a.governing_range
+        linha = {
+            "posicao": posicao,
+            "symbol": c.symbol,
+            "fase": a.phase.code,
+            "semanas_na_fase": a.phase.weeks_in_phase(len(a.closed)),
+            "evento_recente": c.last_event.label if c.last_event else "",
+            "semanas_desde_evento": c.weeks_since_event,
+            "proximo_esperado": a.phase.pending,
+            "close": a.value("close"),
+            "volume_ratio": a.value("volume_ratio"),
+            "range_suporte": tr.support if tr else None,
+            "range_resistencia": tr.resistance if tr else None,
+            "range_ativo": bool(a.active_range),
+        }
+        for w in rs_windows:
+            linha[f"rs_{w}w"] = a.value(f"rs_{w}w")
+        linhas.append(linha)
+    return pd.DataFrame(linhas)
+
+
+def export(result: ScreenResult, config: Config, tag: str) -> Path:
+    """Escreve o ranking em CSV, ao lado dos outros exports."""
+    out_dir = Path(config.get("output.csv_dir", "exports"))
+    out_dir.mkdir(parents=True, exist_ok=True)
+    path = out_dir / f"screen_{result.universe.name}_{tag}.csv"
+    to_frame(result, config).to_csv(path, index=False)
+    return path
+
+def check_universe(
+    universe: Universe, provider: DataProvider, weeks: int = 4, pause: float = 0.0
+) -> tuple[list[str], list[tuple[str, str]]]:
+    """Confere quais tickers do universo ainda respondem na fonte.
+
+    Existe porque ticker de bolsa morre e uma lista estática apodrece calada: o
+    screener continua rodando, só que varrendo menos papéis do que você pensa.
+    Devolve (vivos, [(morto, motivo)]) — quem chama decide o que fazer.
+    """
+    import time
+
+    vivos: list[str] = []
+    mortos: list[tuple[str, str]] = []
+    for symbol in universe.tickers:
+        if pause:
+            time.sleep(pause)
+        try:
+            bars = provider.weekly_bars(symbol, weeks)
+        except Exception as exc:
+            mortos.append((symbol, str(exc)))
+            continue
+        if bars is None or bars.empty:
+            mortos.append((symbol, "fonte não retornou candles"))
+        else:
+            vivos.append(symbol)
+    return vivos, mortos

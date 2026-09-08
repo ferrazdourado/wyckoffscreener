@@ -1,0 +1,41 @@
+# Watchlist do screener (R1).
+# Campos por ticker:
+#   symbol       (obrigatório) ticker yfinance — B3 usa sufixo .SA
+#   market       (obrigatório) b3 | us
+#   benchmark    (opcional)    índice de referência; default por mercado
+#   invalidation (opcional)    { price: <float>, direction: below|above }
+#   range        (opcional)    { support: <float>, resistance: <float> } — prevalece sobre o detectado
+#   notes        (opcional)    texto livre
+#   calendar     (opcional)    lista de { date: AAAA-MM-DD, label: <texto> }
+
+defaults:
+  benchmark:
+    b3: ^BVSP
+    us: ^GSPC
+
+tickers:
+  - symbol: BBAS3.SA
+    market: b3
+  - symbol: B3SA3.SA
+    market: b3
+  - symbol: VALE3.SA
+    market: b3
+  - symbol: PETR4.SA
+    market: b3
+  - symbol: EMBJ3.SA
+    market: b3
+    notes: "Verificar continuidade da série — mudança de ticker em 2025 (questão aberta na spec §8)."
+  - symbol: PRIO3.SA
+    market: b3
+  - symbol: BBSE3.SA
+    market: b3
+  - symbol: ITUB4.SA
+    market: b3
+  - symbol: BAC
+    market: us
+  - symbol: SBUX
+    market: us
+  - symbol: JNJ
+    market: us
+  - symbol: MDLZ
+    market: us

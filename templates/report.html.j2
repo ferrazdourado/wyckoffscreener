@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wyckoff {{ tag }}</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1c1c1e; --muted: #6b6b70; --line: #e3e3e6;
+    --card: #f7f7f8; --bull: #127c39; --bear: #b3261e; --warn: #8a6d1f;
+    --accent: #3b6fb0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16171a; --fg: #e8e8ea; --muted: #9a9aa0; --line: #2c2d31;
+      --card: #1e1f23; --bull: #4ec27d; --bear: #f2836f; --warn: #d6b256;
+      --accent: #7ea9dd;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 1rem; background: var(--bg); color: var(--fg);
+    font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    max-width: 1100px; margin-inline: auto;
+  }
+  h1 { font-size: 1.4rem; margin: 0 0 .2rem; }
+  h2 {
+    font-size: 1.1rem; margin: 2.2rem 0 .8rem; padding-bottom: .3rem;
+    border-bottom: 2px solid var(--line);
+  }
+  h3 { font-size: 1rem; margin: 1.4rem 0 .4rem; }
+  .sub { color: var(--muted); font-size: .85rem; margin-bottom: 1.5rem; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+    padding: .7rem .9rem; margin: .5rem 0;
+  }
+  .alert { border-left: 4px solid var(--bear); }
+  .alert.new { background: color-mix(in srgb, var(--bear) 12%, var(--card)); }
+  .ok { border-left: 4px solid var(--bull); color: var(--muted); }
+  .note { border-left: 4px solid var(--warn); }
+  .tag {
+    display: inline-block; font-size: .68rem; font-weight: 700; letter-spacing: .04em;
+    padding: .12rem .4rem; border-radius: 4px; vertical-align: middle;
+  }
+  .tag.new { background: var(--bear); color: #fff; }
+  .tag.bull { background: var(--bull); color: #fff; }
+  .tag.bear { background: var(--bear); color: #fff; }
+  .tag.neutral { background: var(--warn); color: #fff; }
+  .scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: .5rem 0; }
+  table { border-collapse: collapse; width: 100%; font-size: .82rem; }
+  th, td { padding: .4rem .5rem; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
+  th { text-align: right; color: var(--muted); font-weight: 600; position: sticky; top: 0; background: var(--bg); }
+  th:first-child, td:first-child, th:nth-child(2), td:nth-child(2), td.left, th.left { text-align: left; }
+  tr.violated td { background: color-mix(in srgb, var(--bear) 10%, transparent); font-weight: 600; }
+  .num { font-variant-numeric: tabular-nums; }
+  img { max-width: 100%; height: auto; display: block; border: 1px solid var(--line); border-radius: 6px; }
+  ul.audit { margin: .3rem 0 .3rem 0; padding-left: 1.1rem; color: var(--muted); font-size: .82rem; }
+  ul.audit li { margin: .1rem 0; }
+  .meta { font-size: .85rem; color: var(--muted); }
+  .meta b { color: var(--fg); font-weight: 600; }
+  .kv { margin: .35rem 0; }
+  details { margin: .4rem 0; }
+  summary { cursor: pointer; color: var(--accent); font-size: .85rem; }
+  footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--line);
+           color: var(--muted); font-size: .8rem; }
+  @media (max-width: 640px) {
+    body { padding: .7rem; font-size: 14px; }
+    h1 { font-size: 1.2rem; }
+    table { font-size: .75rem; }
+  }
+  /* Papel (P2): sempre claro — o tema escuro da tela viraria página preta —
+     e nada de gráfico partido ao meio entre duas folhas. */
+  @media print {
+    :root { color-scheme: light; }
+    body { max-width: none; padding: 0; font-size: 11px; }
+    /* Uma página por papel na seção 4 (título + gráfico + ficha andam juntos);
+       as seções curtas do topo continuam correndo na mesma folha. */
+    h3 { break-before: page; break-after: avoid; }
+    img, table, .card, .alert { break-inside: avoid; }
+    /* Na tela a tabela larga rola de lado; no papel não há para onde rolar,
+       então ela encolhe e quebra linha em vez de sair cortada na margem. */
+    .scroll { overflow: visible; }
+    table { font-size: .62rem; }
+    th, td { padding: .22rem .3rem; white-space: normal; }
+    th { position: static; }
+    a { color: inherit; text-decoration: none; }
+    summary { color: var(--muted); }
+    footer { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Wyckoff Screener — semana {{ tag }}</h1>
+<p class="sub">
+  Semana analisada <b>{{ week_start.strftime('%d/%m/%Y') }}</b> (candle semanal fechado) ·
+  gerado em {{ generated_at.strftime('%d/%m/%Y %H:%M') }} · {{ rows|length }} papéis
+</p>
+
+<h2>1. Alertas de invalidação</h2>
+{% if invalidations %}
+  {% for a in invalidations %}
+  <div class="card alert {% if a.is_new %}new{% endif %}">
+    {% if a.is_new %}<span class="tag new">NOVO</span>{% endif %}
+    {{ a.summary }}
+  </div>
+  {% endfor %}
+{% else %}
+  <div class="card ok">Nenhum nível de invalidação violado.</div>
+{% endif %}
+{% if levels_configured < levels_total %}
+<div class="card note">
+  {{ levels_total - levels_configured }} de {{ levels_total }} papéis ainda <b>sem nível de
+  invalidação</b> na watchlist — para esses, esta seção não tem como alertar nada.
+</div>
+{% endif %}
+
+{% if calendar %}
+<h3>Agenda dos próximos {{ calendar_horizon }} dias</h3>
+{% for symbol, event, days in calendar %}
+<div class="card"><b>{{ symbol }}</b> — {{ event.date.strftime('%d/%m') }}
+  ({% if days == 0 %}hoje{% elif days == 1 %}amanhã{% else %}em {{ days }} dias{% endif %}):
+  {{ event.label }}</div>
+{% endfor %}
+{% endif %}
+
+<h2>2. Eventos da semana</h2>
+{% if week_events %}
+  {% for item in week_events %}
+  <div class="card">
+    <b>{{ item.symbol }}</b>
+    <span class="tag {% if item.event.bias == 'acumulacao' %}bull{% elif item.event.bias == 'distribuicao' %}bear{% else %}neutral{% endif %}">{{ item.event.label }}</span>
+    {% if not item.event.confirmed %}<span class="tag neutral">não confirmado</span>{% endif %}
+    <div class="kv">{{ item.event.summary }}</div>
+    <ul class="audit">
+      {% for line in item.event.audit_lines() %}<li>{{ line }}</li>{% endfor %}
+    </ul>
+  </div>
+  {% endfor %}
+{% else %}
+  <div class="card ok">Nenhum evento Wyckoff disparado na semana de {{ week_start.strftime('%d/%m/%Y') }}.</div>
+{% endif %}
+
+<h2>3. Watchlist</h2>
+<div class="scroll">
+<table>
+  <thead><tr>
+    <th class="left">ticker</th><th class="left">fase</th><th>sem.</th><th>vol/méd</th>
+    {% for l in rs_labels %}<th>{{ l }}</th>{% endfor %}
+    <th class="left">range</th><th>fech.</th><th>invalid.</th><th class="left">próximo evento esperado</th>
+  </tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr class="{% if r.violated %}violated{% endif %}">
+      <td class="left">{{ r.symbol }}{% if r.violated %} ⚠{% endif %}</td>
+      <td class="left">{{ r.phase }}</td>
+      <td class="num">{{ r.weeks_in_phase }}</td>
+      <td class="num">{{ r.volume_ratio }}</td>
+      {% for v in r.rs %}<td class="num">{{ v }}</td>{% endfor %}
+      <td class="left num">{{ r.range }}{% if not r.range_active and r.range != '—' %} <span class="meta">(encerrado)</span>{% endif %}</td>
+      <td class="num">{{ r.close }}</td>
+      <td class="num">{{ r.invalidation }}{% if r.invalidation_gap != '—' %} <span class="meta">({{ r.invalidation_gap }})</span>{% endif %}</td>
+      <td class="left">{{ r.pending }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="meta">vol/méd = volume da semana ÷ média de {{ params.volume_sma_weeks }} semanas ·
+FR = força relativa contra o índice · sem. = semanas na fase atual ·
+invalid. = nível de invalidação (folga até ele)</p>
+
+<h2>4. Papel a papel</h2>
+{% for s in sections %}
+<h3 id="{{ s.symbol }}">{{ s.symbol }} — {{ s.analysis.phase.label }}</h3>
+{% if s.chart_uri %}
+  <img src="{{ s.chart_uri }}" alt="Gráfico semanal de {{ s.symbol }}">
+{% elif s.chart_rel %}
+  <img src="{{ tag }}/charts/{{ s.chart_path.name }}" alt="Gráfico semanal de {{ s.symbol }}">
+{% endif %}
+
+<div class="card">
+  <div class="kv"><b>Fase:</b> {{ s.analysis.phase.label }}, há
+    {{ s.analysis.phase.weeks_in_phase(s.analysis.closed|length)|semanas }}
+    (desde {{ s.analysis.phase.since_date.strftime('%d/%m/%Y') }}).</div>
+  <div class="kv meta"><b>Gatilho:</b> {{ s.analysis.phase.reason }}</div>
+  <div class="kv"><b>Próximo evento esperado:</b> {{ s.analysis.phase.pending }}</div>
+  <div class="kv"><b>Range:</b>
+    {% if s.analysis.governing_range %}
+      {{ s.analysis.governing_range.describe() }}{% if not s.analysis.active_range %} — encerrado em {{ s.analysis.governing_range.end_date.strftime('%d/%m/%Y') }}{% endif %}
+    {% else %}nenhum em vigor.{% endif %}
+  </div>
+  {% if s.analysis.latest is not none %}
+  <div class="kv meta"><b>Última semana fechada ({{ s.analysis.latest.name.strftime('%d/%m/%Y') }}):</b>
+    fech. {{ s.analysis.value('close')|fmt }} ·
+    volume {{ s.analysis.value('volume_ratio')|fmt('{:.2f}×') }} a média de {{ params.volume_sma_weeks }}s ·
+    spread {{ s.analysis.value('spread_ratio')|fmt('{:.2f}×') }} o ATR{{ params.atr_weeks }} ·
+    fechamento a {{ s.analysis.value('close_position')|fmt('{:.0%}') }} do candle{% for label, value in s.rs %} · {{ label }} {{ value }}{% endfor %}
+  </div>
+  {% endif %}
+  {% if s.cause %}
+  <div class="kv"><b>Contagem de causa (P&amp;F):</b> {{ s.cause.describe() }}
+    <ul class="audit">{% for line in s.cause.audit_lines() %}<li>{{ line }}</li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+  {% if s.analysis.item.invalidation %}
+  <div class="kv"><b>Invalidação:</b> {{ s.analysis.item.invalidation.describe() }}
+    {% if s.analysis.alert %}— <b style="color:var(--bear)">VIOLADA</b> ({{ s.analysis.alert.weeks_violated|semanas }})
+    {% else %}— folga de {{ s.analysis.invalidation_gap|fmt('{:+.1%}') }}{% endif %}</div>
+  {% endif %}
+  {% if s.analysis.item.notes %}<div class="kv meta"><b>Notas:</b> {{ s.analysis.item.notes }}</div>{% endif %}
+  {% if s.calendar %}
+  <div class="kv meta"><b>Agenda:</b>
+    {% for event, days in s.calendar %}{{ event.date.strftime('%d/%m') }} {{ event.label }} (em {{ days }}d){% if not loop.last %} · {% endif %}{% endfor %}
+  </div>
+  {% endif %}
+  {% for w in s.analysis.warnings %}<div class="kv meta">⚠ {{ w }}</div>{% endfor %}
+</div>
+
+{% if s.detailed_events %}
+<details {% if s.analysis.recent_events %}open{% endif %}>
+  <summary>{{ s.detailed_events|length }} evento(s) nas últimas {{ params.chart_weeks }} semanas{% if s.hidden_events %} (+{{ s.hidden_events }} anteriores, fora do gráfico){% endif %}</summary>
+  {% for e in s.detailed_events %}
+  <div class="card">
+    <b>{{ e.date.strftime('%d/%m/%Y') }}</b>
+    <span class="tag {% if e.bias == 'acumulacao' %}bull{% elif e.bias == 'distribuicao' %}bear{% else %}neutral{% endif %}">{{ e.label }}</span>
+    {% if not e.confirmed %}<span class="tag neutral">não confirmado</span>{% endif %}
+    <div class="kv">{{ e.summary }}</div>
+    <ul class="audit">{% for line in e.audit_lines() %}<li>{{ line }}</li>{% endfor %}</ul>
+  </div>
+  {% endfor %}
+</details>
+{% else %}
+<p class="meta">Nenhum evento detectado na janela do gráfico.</p>
+{% endif %}
+{% endfor %}
+
+<h2>5. Erros de coleta</h2>
+{% if problems %}
+  {% for p in problems %}
+  <div class="card {% if p.origem in ('coleta', 'cache') %}alert{% else %}note{% endif %}">
+    <b>{{ p.symbol }}</b> <span class="meta">({{ p.origem }})</span>: {{ p.message }}
+  </div>
+  {% endfor %}
+{% else %}
+  <div class="card ok">Nenhum erro de coleta.</div>
+{% endif %}
+{% if partials %}
+<div class="card note"><b>Semana em formação</b> (excluída da análise):
+  {% for p in partials %}{{ p.symbol }} ({{ p.week.strftime('%d/%m') }}){% if not loop.last %}, {% endif %}{% endfor %}
+</div>
+{% endif %}
+
+<footer>
+  <p>A contagem de causa (P&amp;F) é estimativa de ordem de grandeza, não preço-alvo:
+     projeta o efeito a partir da largura do range e não conhece nada do que
+     acontece fora dele.</p>
+  <p>Parâmetros: volume SMA {{ params.volume_sma_weeks }}s · ATR {{ params.atr_weeks }}s ·
+     range mínimo {{ params.range_min_weeks }}s com dispersão ≤ {{ '%.0f'|format(params.range_dispersion * 100) }}%.</p>
+  <p><em>{{ disclaimer }}</em></p>
+</footer>
+
+</body>
+</html>
