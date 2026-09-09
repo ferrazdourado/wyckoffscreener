@@ -325,6 +325,46 @@ Exercitado de ponta a ponta em 08/09/2026 com roteamento `b3: brapi` +
 `fallback: [yfinance]`: VALE3 servida pela brapi, BBAS3 e ^BVSP (401 na brapi)
 caíram no yfinance, nenhum papel ficou sem dado.
 
+## Conferência visual no navegador (08/09/2026)
+
+O relatório e o dashboard foram abertos no Chrome, não só validados por
+estrutura. O que ficou comprovado:
+
+**Relatório HTML** — as cinco seções na ordem da spec, tema escuro do sistema
+respeitado, os 12 gráficos embutidos, o `<details>` de cada papel abrindo com os
+números de cada regra (evento, limiar exigido, valor medido). A tabela larga
+(1234 px) rola dentro da própria caixa e **a página não rola de lado** —
+verificado medindo `scrollWidth` contra `innerWidth`, tanto em tela cheia quanto
+a 390 px.
+
+**Em 390 px** (R8, "legível em celular"): a media query entra, a fonte cai para
+14 px, os cartões e a lista de auditoria quebram linha corretamente e o gráfico
+encolhe de 1217 px para 368 px sem estourar a margem. Nesse tamanho o candle é
+legível em traço geral, mas os rótulos de eixo e as etiquetas SOS/SPR/LPS ficam
+pequenos — é o preço de espremer um gráfico semanal de 60 candles num celular;
+o zoom do navegador resolve.
+
+**Dashboard** — as três abas funcionam, o gráfico ocupa a largura toda, o painel
+de Ponto & Figura mostra o alvo e abre a contagem passo a passo, e os números
+coincidem com o terminal e com o relatório (BBAS3: alvo 30,15, +33,9%,
+7 colunas, linha 19,89).
+
+**Dois defeitos que só apareceram no navegador:**
+
+1. **O painel de P&F quebrava a página.** Chamava `CauseCount.summary`, que não
+   existe (o certo é `describe()` + `audit_lines()`). Os testes não pegaram
+   porque a série sintética da fixture era lisa: sem viés de fase declarado, o
+   `for_analysis` devolvia `None` e o painel nunca era exercitado. A fixture
+   passou a ter queda de 25% seguida de lateralização oscilante — o que produz
+   fase, range e contagem de causa de verdade — e há teste de regressão em cima
+   da linha do P&F.
+2. **Layout do papel espremido.** O `st.columns([3, 2])` reduzia o gráfico a
+   ~350 px e quebrava o texto da ficha em uma palavra por linha. Agora o
+   gráfico usa a largura inteira e a ficha vem embaixo, em duas colunas.
+
+Também caiu o botão "Deploy" da barra do Streamlit: não há nuvem para onde
+publicar num screener local.
+
 ## Estrutura
 
 ```
@@ -356,7 +396,7 @@ src/
   cli.py            argparse
 templates/          report.md.j2 + report.html.j2
 universe.yaml       universos do screener (lista de partida, você mantém)
-tests/              434 testes, sem rede
+tests/              436 testes, sem rede
 ```
 
 ## Estado das fases
@@ -396,16 +436,10 @@ tests/              434 testes, sem rede
 
 ## O que ainda não foi verificado
 
-- O HTML foi validado estruturalmente (tags balanceadas, viewport, media query,
-  tema claro/escuro, tabela com rolagem própria), **não visualmente num
-  navegador** — a extensão do Chrome não estava conectada na sessão. O **PDF**,
-  esse sim, foi conferido visualmente: 17 páginas, 12 gráficos embutidos, os
+- ~~HTML e dashboard não vistos num navegador~~ — conferidos no Chrome em
+  08/09/2026; ver "Conferência visual".
+- O **PDF** foi conferido visualmente: 17 páginas, 12 gráficos embutidos, os
   números de cada sinal abertos, tabela inteira dentro da margem.
-- O **dashboard** foi verificado com o `AppTest` do próprio Streamlit — que
-  executa o script como o servidor executaria e acusa exceção —, e subindo o
-  servidor de verdade em `localhost`. **Não foi visto numa janela de navegador**:
-  a extensão não estava conectada e o screenshot por Chrome headless captura o
-  esqueleto antes de o websocket entregar a página.
 - A brapi.dev foi exercitada contra a API real só nos quatro papéis que a
   camada gratuita atende sem token (PETR4, VALE3, ITUB4, MGLU3). O caminho **com
   token** — que é o que serve para valer — está testado só com transporte falso;

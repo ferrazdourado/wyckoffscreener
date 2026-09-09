@@ -188,6 +188,16 @@ def test_dashboard_escuta_so_na_propria_maquina(projeto, monkeypatch):
     assert comando[comando.index("--server.address") + 1] == "localhost"
 
 
+def test_dashboard_sobe_sem_o_botao_deploy(projeto, monkeypatch):
+    """Não há nuvem para onde publicar num screener local."""
+    args, _ = projeto
+    visto = {}
+    monkeypatch.setattr("subprocess.call", lambda c: visto.setdefault("c", c) and 0 or 0)
+    main([*args, "dashboard"])
+    comando = visto["c"]
+    assert comando[comando.index("--client.toolbarMode") + 1] == "minimal"
+
+
 def test_dashboard_nao_manda_telemetria(projeto, monkeypatch):
     args, _ = projeto
     visto = {}

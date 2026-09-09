@@ -632,6 +632,9 @@ def cmd_dashboard(args) -> int:
         "--server.address", args.address,
         # Uso pessoal e local, como a spec pede — sem telemetria.
         "--browser.gatherUsageStats", "false",
+        # Some com o botão "Deploy" da barra do streamlit: aqui não há nuvem
+        # para onde publicar, e o menu de configuração continua acessível.
+        "--client.toolbarMode", "minimal",
     ]
     if args.headless:
         comando += ["--server.headless", "true"]

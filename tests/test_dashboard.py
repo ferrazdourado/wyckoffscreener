@@ -20,32 +20,62 @@ from pathlib import Path  # noqa: E402
 from streamlit.testing.v1 import AppTest  # noqa: E402
 
 from src.data.cache import Cache  # noqa: E402
-from tests.conftest import make_bars  # noqa: E402
+from tests.conftest import weeks_index  # noqa: E402
 
 APP = str(Path(__file__).resolve().parent.parent / "src" / "dashboard.py")
 
 
-def semanal(n: int, base: float) -> "pd.DataFrame":
-    """Série com tendência leve, para as métricas de 20 semanas ficarem válidas."""
+def semanal(escala: float = 1.0):
+    """Queda de 25% e depois lateralização oscilando dentro do range.
+
+    Não é enfeite: a queda é o que declara o viés de acumulação, e a oscilação
+    é o que faz o Ponto & Figura ter colunas para contar. Uma série lisa
+    atravessa o dashboard sem acionar nem fase nem contagem de causa — foi
+    exatamente por isso que um erro no painel de P&F passou pelos testes uma
+    vez.
+    """
+    import math
+
     import pandas as pd
 
-    bars = make_bars(n=n, start="2024-01-01")
-    passo = pd.Series(range(n), index=bars.index) * 0.05
-    for coluna, ajuste in (("open", 0.0), ("high", 1.0), ("low", -1.0), ("close", 0.5)):
-        bars[coluna] = base + passo + ajuste
-    bars["volume"] = 1000.0
+    queda = [14.0 - 0.29 * i for i in range(12)]
+    onda = [10.5 + 0.5 * math.sin(i * math.pi / 4) for i in range(34)]
+    precos = [p * escala for p in queda + onda]
+    n = len(precos)
+    bars = pd.DataFrame(
+        {"open": precos, "close": precos,
+         "high": [p + 0.2 * escala for p in precos], "low": [p - 0.2 * escala for p in precos],
+         "volume": [1000.0] * n},
+        index=weeks_index(n, start="2025-01-06"),
+    )
     bars["is_partial"] = False
     return bars
+
+
+def diario(semanas):
+    """Cinco pregões por semana, para a contagem de P&F usar o insumo real."""
+    import pandas as pd
+
+    linhas = []
+    for inicio, semana in semanas.iterrows():
+        for dia in range(5):
+            linhas.append({"date": pd.Timestamp(inicio) + pd.Timedelta(days=dia),
+                           "open": semana["open"], "high": semana["high"],
+                           "low": semana["low"], "close": semana["close"],
+                           "volume": semana["volume"] / 5})
+    return pd.DataFrame(linhas).set_index("date")
 
 
 @pytest.fixture
 def projeto(tmp_path):
     """config + watchlist + SQLite povoado, tudo dentro do tmp_path."""
     cache_path = tmp_path / "cache.sqlite"
+    papel, indice = semanal(), semanal(escala=4.0)
     with Cache(cache_path) as cache:
-        cache.upsert_bars("PETR4.SA", semanal(60, 30.0))
-        cache.upsert_bars("^BVSP", semanal(60, 120.0))
-        cache.record_fetch("PETR4.SA", "ok", 60)
+        cache.upsert_bars("PETR4.SA", papel)
+        cache.upsert_bars("^BVSP", indice)
+        cache.upsert_daily("PETR4.SA", diario(papel))
+        cache.record_fetch("PETR4.SA", "ok", len(papel))
 
     config = tmp_path / "config.yaml"
     config.write_text(yaml.safe_dump({"data": {"cache_path": str(cache_path)},
@@ -86,6 +116,13 @@ def test_sem_nivel_de_invalidacao_a_secao_explica_em_vez_de_ficar_vazia(projeto,
     app = rodar(*projeto, monkeypatch)
     assert any("sem nível de invalidação" in i.value or "nível de invalidação" in i.value
                for i in app.info)
+
+
+def test_contagem_de_causa_aparece_com_os_numeros_que_a_produziram(projeto, monkeypatch):
+    """Regressão: o painel chamava um atributo que o CauseCount não tem."""
+    app = rodar(*projeto, monkeypatch)
+    assert not app.exception
+    assert any("Contagem de causa (P&F)" in m.value for m in app.markdown)
 
 
 def test_config_inexistente_vira_mensagem_e_nao_stacktrace(tmp_path, monkeypatch):

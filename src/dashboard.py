@@ -158,15 +158,19 @@ def painel_papel(modelo: dict, config, symbol: str) -> None:
     analise = secao["analysis"]
     fase = analise.phase
 
-    esquerda, direita = st.columns([3, 2])
+    # Gráfico na largura inteira: dividir a tela em duas colunas encolhia o
+    # candle e ainda quebrava o texto da ficha em uma palavra por linha.
+    png = desenhar(symbol, modelo["tag"], analise, config)
+    if png:
+        st.image(png, use_container_width=True)
+    else:
+        st.caption("Sem gráfico: histórico insuficiente.")
+
+    esquerda, direita = st.columns(2)
     with esquerda:
-        png = desenhar(symbol, modelo["tag"], analise, config)
-        if png:
-            st.image(png, use_container_width=True)
-        else:
-            st.caption("Sem gráfico: histórico insuficiente.")
-    with direita:
-        st.markdown(f"### {fase.label}")
+        # Rótulo em negrito, não em `###`: numa coluna de meia tela o título
+        # grande quebrava em quatro linhas.
+        st.markdown(f"**{fase.label}**")
         st.caption(f"há {fase.weeks_in_phase(len(analise.closed))} semana(s), "
                    f"desde {fase.since_date:%d/%m/%Y}")
         st.markdown(f"**Gatilho:** {fase.reason}")
@@ -177,11 +181,24 @@ def painel_papel(modelo: dict, config, symbol: str) -> None:
         else:
             st.markdown("**Range:** nenhum em vigor.")
         if secao["cause"]:
-            st.markdown(f"**Contagem de causa (P&F):** {secao['cause'].summary}")
+            st.markdown(f"**Contagem de causa (P&F):** {secao['cause'].describe()}")
+            with st.expander("como a contagem foi feita"):
+                for linha in secao["cause"].audit_lines():
+                    st.caption(f"· {linha}")
+    with direita:
         if analise.alert:
             st.error(analise.alert.summary)
         for evento, dias in secao["calendar"]:
             st.info(f"📅 {evento.label} em {dias} dia(s) ({evento.date:%d/%m/%Y})")
+        if analise.latest is not None:
+            st.markdown(f"**Última semana fechada ({analise.latest.name:%d/%m/%Y})**")
+            st.caption(" · ".join(
+                f"{rotulo} {analise.latest[coluna]:{formato}}"
+                for coluna, rotulo, formato in (
+                    ("close", "fech.", ".2f"), ("volume_ratio", "vol/méd", ".2f"),
+                    ("spread_ratio", "spread/ATR", ".2f"), ("close_position", "pos. fech.", ".0%"),
+                ) if coluna in analise.latest.index and pd.notna(analise.latest[coluna])
+            ))
 
     st.markdown("#### Eventos detectados")
     if not secao["detailed_events"]:
