@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import os
 import sys
 from pathlib import Path
 
@@ -30,6 +31,7 @@ import yaml
 from .config import Config, ConfigError, load_config
 from .data.cache import Cache
 from .data.factory import ProviderError, build_provider, build_single
+from .env import load_env
 from .metrics import latest_row
 from .pipeline import build_metrics, export_csv, fetch_all
 from .screener import UniverseError
@@ -94,6 +96,30 @@ def _load(args) -> tuple[Config, object]:
     return load_config(args.config), load_watchlist(args.watchlist)
 
 
+def _relatar_env(args) -> None:
+    """Diz quais segredos vieram do arquivo — pelo nome, nunca pelo valor."""
+    from .env import find_env
+
+    caminho = find_env(getattr(args, "env_file", None))
+    if caminho is None:
+        print("\n.env          não encontrado — exporte as variáveis à mão se for notificar")
+        return
+    nomes = sorted(k for k in parse_env_nomes(caminho))
+    print(f"\n.env          ok — {caminho}")
+    for nome in nomes:
+        marca = "definida" if os.environ.get(nome) else "VAZIA"
+        print(f"  {nome:<28} {marca}")
+
+
+def parse_env_nomes(caminho) -> list[str]:
+    from .env import parse_env
+
+    try:
+        return list(parse_env(Path(caminho).read_text(encoding="utf-8")))
+    except OSError:
+        return []
+
+
 def cmd_validate(args) -> int:
     config, watchlist = _load(args)
     print(f"config.yaml    ok — ATR {config.get('metrics.atr_weeks')}s "
@@ -111,6 +137,7 @@ def cmd_validate(args) -> int:
             extras.append(f"{len(item.calendar)} evento(s) de calendário")
         suffix = f"  [{'; '.join(extras)}]" if extras else ""
         print(f"  {item.symbol:<10} {item.market:<3} vs {item.benchmark}{suffix}")
+    _relatar_env(args)
     return 0
 
 
@@ -788,6 +815,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="wyckoff", description="Screener Wyckoff semanal (B3 + US)")
     parser.add_argument("--config", default="config.yaml")
     parser.add_argument("--watchlist", default="watchlist.yaml")
+    parser.add_argument("--env-file", help="arquivo de segredos (default: .env, se existir)")
     sub = parser.add_subparsers(dest="command", required=True)
 
     sub.add_parser("validate", help="valida config.yaml e watchlist.yaml").set_defaults(func=cmd_validate)
@@ -889,6 +917,10 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    # Antes de qualquer comando: os segredos de R9 e da brapi vêm do ambiente, e
+    # o `.env` é o que põe os do usuário lá. Variável já exportada na sessão
+    # vence o arquivo.
+    load_env(getattr(args, "env_file", None))
     try:
         return args.func(args)
     except (ConfigError, WatchlistError, UniverseError, ProviderError) as exc:

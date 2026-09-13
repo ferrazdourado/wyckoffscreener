@@ -12,6 +12,12 @@ python3 -m venv .venv
 .venv/bin/pip install -e ".[dev]"
 ```
 
+Segredos (token do bot, senha de SMTP, token da brapi) vão num `.env` na raiz,
+que o `wyckoff` carrega sozinho a cada comando — `cp .env.example .env` e
+preencha. O `config.yaml` guarda só o **nome** da variável, nunca o valor, e
+variável já exportada na sessão vence o arquivo. `wyckoff validate` lista o que
+foi carregado, pelo nome.
+
 Extras opcionais — a rotina semanal não depende de nenhum deles:
 
 ```bash
@@ -389,6 +395,7 @@ src/
   pnf.py            R10 — Ponto & Figura e contagem de causa
   backtest.py       R11 — calibragem, com modo causal
   screener.py       R12 — universos e ranking de candidatos
+  env.py            carga do .env; ambiente real vence o arquivo
   sources.py        P2 — comparação entre fontes (a régua da §8)
   pdf.py            P2 — HTML -> PDF, três motores, o que existir na máquina
   dashboard.py      P2 — Streamlit sobre o mesmo cache e o mesmo modelo
@@ -396,7 +403,7 @@ src/
   cli.py            argparse
 templates/          report.md.j2 + report.html.j2
 universe.yaml       universos do screener (lista de partida, você mantém)
-tests/              436 testes, sem rede
+tests/              454 testes, sem rede
 ```
 
 ## Estado das fases

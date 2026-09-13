@@ -176,7 +176,9 @@ alerts:
 # Nada é enviado sem pedido explícito: `enabled: false` aqui e, mesmo ligado,
 # só `wyckoff notify` ou `wyckoff report --notify` disparam mensagem.
 # SEGREDOS NÃO ENTRAM NESTE ARQUIVO — o config guarda o NOME da variável de
-# ambiente, e o código lê o valor de lá.
+# ambiente, e o código lê o valor de lá. Os valores ficam no `.env` (veja
+# `.env.example`), que o `wyckoff` carrega sozinho; variável já exportada na
+# sessão vence o arquivo. `wyckoff validate` mostra o que foi carregado.
 notify:
   enabled: false
   backend: telegram        # telegram | email

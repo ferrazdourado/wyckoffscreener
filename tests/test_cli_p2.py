@@ -161,6 +161,40 @@ def test_falha_do_pdf_nao_invalida_o_relatorio_ja_escrito(projeto, monkeypatch, 
     assert "PDF não gerado" in capsys.readouterr().err
 
 
+# --------------------------- .env ---------------------------
+
+def test_env_file_abastece_o_ambiente_antes_do_comando(projeto, tmp_path, monkeypatch, capsys):
+    """Sem isto o `.env` é um arquivo que parece configurar e não configura."""
+    args, _ = projeto
+    monkeypatch.delenv("WYCKOFF_TELEGRAM_TOKEN", raising=False)
+    env_file = tmp_path / "segredos.env"
+    env_file.write_text("WYCKOFF_TELEGRAM_TOKEN=abc123\n", encoding="utf-8")
+    main([*args, "--env-file", str(env_file), "validate"])
+    import os
+    assert os.environ["WYCKOFF_TELEGRAM_TOKEN"] == "abc123"
+
+
+def test_validate_lista_os_segredos_pelo_nome_e_nunca_pelo_valor(projeto, tmp_path,
+                                                                 monkeypatch, capsys):
+    args, _ = projeto
+    monkeypatch.delenv("WYCKOFF_SMTP_PASSWORD", raising=False)
+    env_file = tmp_path / "segredos.env"
+    env_file.write_text("WYCKOFF_SMTP_PASSWORD=abracadabra\n", encoding="utf-8")
+    main([*args, "--env-file", str(env_file), "validate"])
+    saida = capsys.readouterr().out
+    assert "WYCKOFF_SMTP_PASSWORD" in saida and "definida" in saida
+    assert "abracadabra" not in saida
+
+
+def test_sem_env_file_validate_diz_como_seguir(projeto, tmp_path, monkeypatch, capsys):
+    args, _ = projeto
+    from src import env as env_mod
+    monkeypatch.setattr(env_mod, "RAIZ", tmp_path / "sem-raiz")
+    monkeypatch.chdir(tmp_path)
+    main([*args, "validate"])
+    assert "exporte as variáveis à mão" in capsys.readouterr().out
+
+
 # --------------------------- dashboard ---------------------------
 
 def test_dashboard_manda_o_streamlit_ler_os_mesmos_arquivos(projeto, monkeypatch, capsys):
