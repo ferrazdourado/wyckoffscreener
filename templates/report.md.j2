@@ -55,7 +55,37 @@ Nenhum evento Wyckoff disparado na semana de {{ week_start.strftime('%d/%m/%Y') 
 FR = força relativa contra o índice · sem. = semanas na fase atual ·
 invalid. = nível de invalidação (folga até ele)*
 
-## 4. Papel a papel
+{% if candidates %}
+## 4. Candidatos fora da watchlist
+
+{% for bloco in candidates %}
+**{{ bloco.universe }}** — {{ bloco.scanned }} papéis varridos, {{ bloco.candidates|length }} em Fase {{ bloco.phases|join('/') }}{% if bloco.illiquid %}, {{ bloco.illiquid }} descartado(s) por liquidez abaixo de {{ bloco.min_liquidity|fmt('{:,.0f}') }} por semana{% endif %}.
+
+{% if bloco.candidates %}
+| # | papel | fase | evento | há | {{ rs_labels[-1] }} | liquidez/sem. | fech. |
+|---|---|---|---|---|---|---|---|
+{% for c in bloco.candidates %}
+| {{ loop.index }} | {{ c.symbol }} | {{ c.phase }} | {{ c.event }} | {{ c.weeks_since|semanas }} | {{ c.rs }} | {{ c.liquidity|fmt('{:,.0f}') }} | {{ c.close }} |
+{% endfor %}
+
+Para promover um papel à watchlist:
+
+```
+{% for c in bloco.candidates %}
+wyckoff add {{ c.symbol }} --market {{ bloco.market }}{% if c.invalidation %} --invalidation {{ c.invalidation }}{% endif %}{% if c.direction %} --direction {{ c.direction }}{% endif %}
+
+{% endfor %}
+```
+{% else %}
+Nenhum candidato nas fases pedidas.
+{% endif %}
+
+{% endfor %}
+> O nível sugerido em `--invalidation` vem do range detectado, não de uma
+> leitura sua. Confira o gráfico antes de adotar.
+
+{% endif %}
+## {{ 5 if candidates else 4 }}. Papel a papel
 
 {% for s in sections %}
 ### {{ s.symbol }} — {{ s.analysis.phase.label }}
@@ -117,7 +147,7 @@ Nenhum evento detectado na janela do gráfico.
 
 {% endfor %}
 
-## 5. Erros de coleta
+## {{ 6 if candidates else 5 }}. Erros de coleta
 
 {% if problems %}
 {% for p in problems %}

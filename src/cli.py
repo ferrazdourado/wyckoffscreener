@@ -375,8 +375,11 @@ def cmd_report(args) -> int:
         print("\nNenhum papel com dados. Rode `wyckoff fetch` primeiro.", file=sys.stderr)
         return 1
 
+    resultados_screen = _varrer_universos(args, config, now, watchlist) if args.screen else None
+
     print(f"Analisando e desenhando {len(metrics)} papéis...")
-    paths, model = generate(watchlist, metrics, config, now, fetch_errors, problems, daily)
+    paths, model = generate(watchlist, metrics, config, now, fetch_errors, problems, daily,
+                            resultados_screen)
 
     print(f"\nRelatório da semana {model['tag']} ({model['week_start']:%d/%m/%Y}):")
     print(f"  Markdown: {paths.markdown}")
@@ -399,6 +402,44 @@ def cmd_report(args) -> int:
     if args.notify:
         return _notificar(model, config) or codigo
     return codigo
+
+
+def _varrer_universos(args, config, now, watchlist=None) -> list:
+    """Varredura dos universos amplos para a seção de candidatos do relatório.
+
+    Erro num universo não derruba o relatório: a seção sai sem ele, e o motivo
+    aparece no terminal. O entregável de sexta é a leitura da watchlist.
+    """
+    from .screener import load_universes, refresh, screen
+
+    nomes = ([n.strip() for n in args.universes.split(",")] if args.universes
+             else list(config.get("screener.report_universes", []) or []))
+    if not nomes:
+        print("  ! nenhum universo configurado em `screener.report_universes`", file=sys.stderr)
+        return []
+
+    caminho = config.get("screener.universe_path", "universe.yaml")
+    universos = load_universes(caminho)
+    fases = tuple(str(f).upper() for f in config.get("screener.phases", ["C", "D"]))
+    limite = int(config.get("screener.top", 25))
+    resultados = []
+
+    with Cache(config.require("data.cache_path")) as cache:
+        for nome in nomes:
+            universo = universos.get(nome)
+            if universo is None:
+                print(f"  ! universo `{nome}` não existe em {caminho}", file=sys.stderr)
+                continue
+            if not args.offline:
+                print(f"Varrendo {nome} ({len(universo.tickers)} papéis)...")
+                relatorio = refresh(universo, config, build_provider(config, market=universo.market),
+                                    cache, force=args.force, now=now)
+                falhas = len(relatorio.errors)
+                if falhas:
+                    print(f"  {falhas} papel(éis) sem dados — seguem fora da varredura")
+            resultados.append(screen(universo, config, cache, phases=fases, limit=limite,
+                                     exclude=set(watchlist.symbols) if watchlist else None))
+    return resultados
 
 
 def cmd_analyze(args) -> int:
@@ -532,6 +573,10 @@ def cmd_screen(args) -> int:
 
     print(f"\n{len(resultado.candidates)} candidato(s) em Fase {'/'.join(fases)} "
           f"de {resultado.scanned} papéis analisados ({nome}):\n")
+    if resultado.illiquid:
+        # Nunca silencioso: um filtro que descarta sem avisar vira suspeita de bug.
+        print(f"  ({resultado.illiquid} papel(éis) descartado(s) por negociarem menos de "
+              f"{resultado.min_liquidity:,.0f} por semana — `screener.min_weekly_volume`)\n")
     frame = to_frame(resultado, config)
     if frame.empty:
         print("  (nenhum papel nas fases pedidas nesta semana)")
@@ -830,6 +875,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_report = sub.add_parser("report", help="gera o relatório semanal (.md + .html) — comando único da rotina")
     p_report.add_argument("--offline", action="store_true", help="não coleta; usa só o que está no cache")
     p_report.add_argument("--force", action="store_true", help="rebaixa mesmo se já coletado hoje")
+    p_report.add_argument("--screen", action="store_true",
+                          help="acrescenta a seção de candidatos fora da watchlist (R12)")
+    p_report.add_argument("--universes",
+                          help="universos a varrer com --screen (default: screener.report_universes)")
     p_report.add_argument("--pdf", action="store_true",
                           help="exporta também em PDF (P2)")
     p_report.add_argument("--notify", action="store_true",

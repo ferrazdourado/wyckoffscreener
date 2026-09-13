@@ -22,7 +22,7 @@ import pandas as pd
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from . import charts
-from .alerts import collect_alerts, levels_configured
+from .alerts import collect_alerts, levels_configured, suggest_invalidation
 from . import pnf
 from .analysis import TickerAnalysis, analyze_all, week_tag
 from .config import Config
@@ -74,6 +74,7 @@ def build_model(
     metric_warnings: list | None = None,
     charts_root: Path | None = None,
     daily: dict[str, pd.DataFrame] | None = None,
+    screen_results: list | None = None,
 ) -> dict:
     """Todo o conteúdo do relatório, pronto para os dois templates.
 
@@ -153,6 +154,7 @@ def build_model(
         "calendar_horizon": int(config.get("alerts.calendar_horizon_days", 14)),
         "week_events": week_events,
         "rows": rows,
+        "candidates": _candidate_blocks(screen_results, config),
         "rs_labels": [label for _, label in rs_cols],
         "sections": sections,
         "problems": _merge_problems(fetch_errors, missing, metric_warnings, analysis_warnings),
@@ -207,6 +209,42 @@ def _merge_problems(
     return sorted(por_simbolo.values(), key=lambda d: d["symbol"])
 
 
+def _candidate_blocks(screen_results, config: Config) -> list[dict]:
+    """Resultados do screener no formato que os dois templates consomem.
+
+    Cada candidato já sai com a linha `wyckoff add` pronta: achar o papel e não
+    saber o que fazer com ele deixaria a seção a meio caminho.
+    """
+    rs_windows = [int(w) for w in config.require("metrics.relative_strength_weeks")]
+    rs_col = f"rs_{rs_windows[-1]}w" if rs_windows else "rs_12w"
+    blocos = []
+    for resultado in screen_results or []:
+        itens = []
+        for c in resultado.candidates:
+            sugestao = suggest_invalidation(c.analysis)
+            itens.append({
+                "symbol": c.symbol,
+                "phase": c.analysis.phase.label,
+                "event": c.last_event.label if c.last_event else "—",
+                "weeks_since": c.weeks_since_event,
+                "rs": _fmt(c.analysis.value(rs_col), "{:+.1%}"),
+                "liquidity": c.liquidity,
+                "close": _fmt(c.analysis.value("close")),
+                "invalidation": f"{sugestao[0]:.2f}" if sugestao else None,
+                "direction": sugestao[1] if sugestao else None,
+            })
+        blocos.append({
+            "universe": resultado.universe.name,
+            "market": resultado.universe.market,
+            "scanned": resultado.scanned,
+            "illiquid": resultado.illiquid,
+            "min_liquidity": resultado.min_liquidity,
+            "phases": list(resultado.phases),
+            "candidates": itens,
+        })
+    return blocos
+
+
 def _env() -> Environment:
     env = Environment(
         loader=FileSystemLoader(str(TEMPLATE_DIR)),
@@ -239,10 +277,11 @@ def generate(
     fetch_errors: list | None = None,
     metric_warnings: list | None = None,
     daily: dict[str, pd.DataFrame] | None = None,
+    screen_results: list | None = None,
 ) -> tuple[ReportPaths, dict]:
     """Caminho completo de `wyckoff report`: analisa, desenha, renderiza."""
     now = now or dt.datetime.now()
     out_dir = Path(config.get("output.reports_dir", "reports"))
     model = build_model(watchlist, metrics, config, now, fetch_errors, metric_warnings,
-                        out_dir, daily)
+                        out_dir, daily, screen_results)
     return render(model, config), model

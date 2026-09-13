@@ -128,6 +128,10 @@ DEFAULTS: dict[str, Any] = {
         "default_universe": "b3_liquidas",
         "phases": ["C", "D"],
         "top": 25,
+        # Piso de liquidez do candidato: mediana do volume financeiro semanal
+        # das últimas 12 semanas. Existe por causa dos universos amplos.
+        "min_weekly_volume": 2_000_000,
+        "report_universes": ["b3_completa", "us_large"],
     },
 }
 

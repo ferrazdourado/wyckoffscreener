@@ -239,3 +239,60 @@ def test_dashboard_nao_manda_telemetria(projeto, monkeypatch):
     main([*args, "dashboard"])
     comando = visto["c"]
     assert comando[comando.index("--browser.gatherUsageStats") + 1] == "false"
+
+
+# --------------------------- report --screen ---------------------------
+
+def _universo_de_teste(tmp_path, symbols=("PETR4.SA",)):
+    import yaml as _yaml
+    caminho = tmp_path / "universo.yaml"
+    caminho.write_text(_yaml.safe_dump(
+        {"universes": {"teste": {"market": "b3", "benchmark": "^BVSP",
+                                 "tickers": list(symbols)}}}), encoding="utf-8")
+    return caminho
+
+
+def test_report_sem_screen_nao_tem_secao_de_candidatos(projeto):
+    args, tmp_path = projeto
+    main([*args, "report", "--offline"])
+    texto = next((tmp_path / "reports").glob("*.md")).read_text(encoding="utf-8")
+    assert "Candidatos fora da watchlist" not in texto
+    assert "## 4. Papel a papel" in texto and "## 5. Erros de coleta" in texto
+
+
+def test_report_com_screen_acrescenta_a_secao_e_renumera(projeto, tmp_path, monkeypatch):
+    """A numeração das seções da spec continua contígua com a seção nova."""
+    args, raiz = projeto
+    universo = _universo_de_teste(tmp_path, ["OUTRO.SA"])
+    monkeypatch.setattr("src.screener.load_universes",
+                        lambda caminho: __import__("src.screener", fromlist=["load_universes"])
+                        .parse_universes(__import__("yaml").safe_load(universo.read_text()), str(universo)))
+    main([*args, "report", "--offline", "--screen", "--universes", "teste"])
+    texto = next((raiz / "reports").glob("*.md")).read_text(encoding="utf-8")
+    assert "## 4. Candidatos fora da watchlist" in texto
+    assert "## 5. Papel a papel" in texto
+    assert "## 6. Erros de coleta" in texto
+
+
+def test_papel_da_watchlist_nao_aparece_como_candidato_no_relatorio(projeto, tmp_path, monkeypatch):
+    args, raiz = projeto
+    universo = _universo_de_teste(tmp_path, ["PETR4.SA"])   # o mesmo da watchlist
+    monkeypatch.setattr("src.screener.load_universes",
+                        lambda caminho: __import__("src.screener", fromlist=["load_universes"])
+                        .parse_universes(__import__("yaml").safe_load(universo.read_text()), str(universo)))
+    main([*args, "report", "--offline", "--screen", "--universes", "teste"])
+    texto = next((raiz / "reports").glob("*.md")).read_text(encoding="utf-8")
+    secao = texto.split("## 4. Candidatos")[1].split("## 5.")[0]
+    assert "PETR4.SA" not in secao
+
+
+def test_universo_inexistente_nao_derruba_o_relatorio(projeto, tmp_path, monkeypatch, capsys):
+    """O entregável de sexta é a leitura da watchlist; a varredura é extra."""
+    args, raiz = projeto
+    universo = _universo_de_teste(tmp_path)
+    monkeypatch.setattr("src.screener.load_universes",
+                        lambda caminho: __import__("src.screener", fromlist=["load_universes"])
+                        .parse_universes(__import__("yaml").safe_load(universo.read_text()), str(universo)))
+    assert main([*args, "report", "--offline", "--screen", "--universes", "nao_existe"]) == 0
+    assert "não existe" in capsys.readouterr().err
+    assert list((raiz / "reports").glob("*.html"))

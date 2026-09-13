@@ -1,6 +1,7 @@
 """CLI da Fase 2: `wyckoff report` e `wyckoff analyze`, sem rede."""
 
 import datetime as dt
+import pathlib
 
 import pandas as pd
 import pytest
@@ -151,10 +152,18 @@ def projeto_com_universo(projeto, tmp_path):
                                "tickers": ["PETR4.SA"]}}}
     ), encoding="utf-8")
     args, _ = projeto
+    # O papel sintético negocia R$ 1.000 por semana — qualquer piso realista o
+    # descartaria, e o que estes testes medem é o ranqueamento.
+    config_path = pathlib.Path(args[1])
+    cfg = _yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    cfg.setdefault("screener", {})["min_weekly_volume"] = 0
+    config_path.write_text(_yaml.safe_dump(cfg), encoding="utf-8")
     return args, caminho
 
 
 def test_screen_offline_ranqueia_e_exporta(projeto_com_universo, capsys, tmp_path):
+    """O papel sintético negocia R$ 1.000 por semana; o piso de liquidez real
+    o descartaria, e o que este teste mede é o ranqueamento."""
     args, universo = projeto_com_universo
     assert main([*args, "screen", "meu", "--universe-file", str(universo), "--offline",
                  "--phases", "B,C,D"]) == 0

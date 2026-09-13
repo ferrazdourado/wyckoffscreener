@@ -29,9 +29,11 @@ pip install -e ".[pdf]"         # motor de PDF para máquina sem Chrome/Chromium
 
 ```bash
 wyckoff report              # ROTINA DE SEXTA: coleta, analisa e gera .md + .html
+wyckoff report --screen     # o mesmo, e garimpa candidatos fora da watchlist
 wyckoff report --notify     # o mesmo, e manda o resumo pelo canal configurado
 
-wyckoff screen b3_liquidas  # varre 78 papéis e ranqueia quem está em Fase C/D
+wyckoff screen b3_completa  # varre as 371 ações da B3 e ranqueia quem está em Fase C/D
+wyckoff screen b3_liquidas  # o mesmo, na lista curta de 78 nomes conferidos
 wyckoff backtest            # mede o que vem depois de cada regra (calibragem)
 wyckoff notify --dry-run    # mostra a mensagem sem enviar
 wyckoff universe --check    # confere quais tickers do universo ainda existem
@@ -211,6 +213,48 @@ mentindo. Mostra no topo de quando é o dado e avisa quando o cache passa de uma
 semana, porque página aberta há três dias parece atual. Escuta só em
 `localhost` (o default do Streamlit publica na rede local) e sobe com a
 telemetria desligada.
+
+### Garimpo de candidatos dentro da rotina
+
+A spec entregou R12 como comando separado (`wyckoff screen`), e ficou um buraco
+contra o objetivo do §2: a rotina de sexta deveria ser **um** comando e **um**
+documento para revisar, mas descobrir papel novo exigia lembrar de um segundo
+comando cuja saída ia para outro arquivo.
+
+`wyckoff report --screen` fecha isso: acrescenta ao relatório a seção
+**"Candidatos fora da watchlist"**, com fase, evento da semana, força relativa,
+liquidez e a linha `wyckoff add` pronta para promover o papel. Fica em `--screen`
+e não no padrão porque varrer 400 papéis custa minutos de coleta, enquanto o
+relatório da watchlist sai em segundos — as duas velocidades servem a momentos
+diferentes.
+
+Três decisões dentro dela:
+
+**Papel da watchlist nunca volta como candidato.** Uma seção chamada "fora da
+watchlist" que devolvesse VALE3 e ITUB4 gastaria as primeiras linhas — as que
+você lê — repetindo o que já está na seção 3. Foi o primeiro defeito que
+apareceu ao testar.
+
+**Piso de liquidez.** O universo amplo tem papel que negocia quase nada, e a
+leitura Wyckoff de um candle semanal formado por três negócios é ruído com nome
+de sinal. `screener.min_weekly_volume` corta pela mediana do volume financeiro
+semanal das últimas 12 semanas (na moeda do papel). O relatório e o terminal
+sempre dizem quantos papéis o filtro descartou: filtro silencioso vira suspeita
+de bug.
+
+**A numeração das seções acompanha.** Sem `--screen` o relatório mantém as cinco
+seções da spec; com ele, candidatos entram como 4 e "Papel a papel" e "Erros de
+coleta" viram 5 e 6. Os candidatos vêm **antes** do detalhe por papel de
+propósito: é decisão de triagem, e triagem não se lê depois de doze gráficos.
+
+### Universo amplo da B3
+
+`b3_completa` tem as **371 ações** do mercado à vista da B3, montadas a partir
+da listagem da brapi.dev em 13/09/2026 e filtradas por padrão de código
+(ON/PN/PNA/PNB/PNC/PND/UNIT). Ficaram de fora o mercado fracionário (`…F`, que é
+o mesmo papel em lote ímpar e duplicaria a lista), direitos e recibos de
+subscrição, BDRs e fundos. Não é lista curada — é o mercado inteiro, e é por
+isso que o piso de liquidez existe.
 
 ## Divergências da spec, e por quê
 
@@ -402,8 +446,8 @@ src/
   pipeline.py       orquestração; falha de um ticker não derruba o lote
   cli.py            argparse
 templates/          report.md.j2 + report.html.j2
-universe.yaml       universos do screener (lista de partida, você mantém)
-tests/              454 testes, sem rede
+universe.yaml       universos do screener: 371 ações da B3, 78 líquidas, 31 US
+tests/              463 testes, sem rede
 ```
 
 ## Estado das fases

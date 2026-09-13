@@ -170,7 +170,47 @@
 FR = força relativa contra o índice · sem. = semanas na fase atual ·
 invalid. = nível de invalidação (folga até ele)</p>
 
-<h2>4. Papel a papel</h2>
+{% if candidates %}
+<h2>4. Candidatos fora da watchlist</h2>
+{% for bloco in candidates %}
+<p class="sub"><b>{{ bloco.universe }}</b> — {{ bloco.scanned }} papéis varridos,
+  {{ bloco.candidates|length }} em Fase {{ bloco.phases|join('/') }}{% if bloco.illiquid %},
+  {{ bloco.illiquid }} descartado(s) por liquidez abaixo de
+  {{ bloco.min_liquidity|fmt('{:,.0f}') }} por semana{% endif %}.</p>
+{% if bloco.candidates %}
+<div class="scroll">
+<table>
+  <thead><tr>
+    <th>#</th><th class="left">papel</th><th class="left">fase</th>
+    <th class="left">evento</th><th>há</th><th>{{ rs_labels[-1] }}</th>
+    <th>liquidez/sem.</th><th>fech.</th><th class="left">promover</th>
+  </tr></thead>
+  <tbody>
+  {% for c in bloco.candidates %}
+    <tr>
+      <td>{{ loop.index }}</td>
+      <td class="left">{{ c.symbol }}</td>
+      <td class="left">{{ c.phase }}</td>
+      <td class="left">{{ c.event }}</td>
+      <td>{{ c.weeks_since|semanas }}</td>
+      <td>{{ c.rs }}</td>
+      <td>{{ c.liquidity|fmt('{:,.0f}') }}</td>
+      <td>{{ c.close }}</td>
+      <td class="left"><code>wyckoff add {{ c.symbol }} --market {{ bloco.market }}{% if c.invalidation %} --invalidation {{ c.invalidation }}{% endif %}{% if c.direction %} --direction {{ c.direction }}{% endif %}</code></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<div class="card ok">Nenhum candidato nas fases pedidas.</div>
+{% endif %}
+{% endfor %}
+<p class="meta">O nível sugerido em <code>--invalidation</code> vem do range
+  detectado, não de uma leitura sua. Confira o gráfico antes de adotar.</p>
+{% endif %}
+
+<h2>{{ 5 if candidates else 4 }}. Papel a papel</h2>
 {% for s in sections %}
 <h3 id="{{ s.symbol }}">{{ s.symbol }} — {{ s.analysis.phase.label }}</h3>
 {% if s.chart_uri %}
@@ -235,7 +275,7 @@ invalid. = nível de invalidação (folga até ele)</p>
 {% endif %}
 {% endfor %}
 
-<h2>5. Erros de coleta</h2>
+<h2>{{ 6 if candidates else 5 }}. Erros de coleta</h2>
 {% if problems %}
   {% for p in problems %}
   <div class="card {% if p.origem in ('coleta', 'cache') %}alert{% else %}note{% endif %}">

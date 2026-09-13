@@ -130,6 +130,7 @@ class Candidate:
     analysis: TickerAnalysis
     weeks_since_event: int | None
     last_event: object | None
+    liquidity: float = 0.0       # volume financeiro semanal típico
 
     @property
     def symbol(self) -> str:
@@ -161,6 +162,21 @@ class ScreenResult:
     scanned: int = 0
     problems: list[SymbolStatus] = field(default_factory=list)
     phases: tuple[str, ...] = ()
+    illiquid: int = 0            # descartados pelo piso de liquidez
+    min_liquidity: float = 0.0
+
+
+def weekly_liquidity(metrics: pd.DataFrame, weeks: int = 12) -> float:
+    """Mediana do volume financeiro semanal (preço × volume) das últimas semanas.
+
+    Mediana, e não média: uma única semana de leilão ou de notícia levantaria a
+    média de um papel que não negocia no resto do tempo.
+    """
+    if metrics is None or metrics.empty:
+        return 0.0
+    janela = metrics.tail(weeks)
+    financeiro = (janela["close"] * janela["volume"]).dropna()
+    return float(financeiro.median()) if not financeiro.empty else 0.0
 
 
 def _weeks_since_event(analysis: TickerAnalysis) -> tuple[int | None, object | None]:
@@ -184,21 +200,30 @@ def screen(
     cache: Cache,
     phases: tuple[str, ...] = ("C", "D"),
     limit: int | None = None,
+    exclude: frozenset[str] | set[str] | None = None,
 ) -> ScreenResult:
     """Ranqueia os papéis do universo que estão nas fases pedidas.
 
     Lê só do cache — quem coleta é `refresh`. Assim a varredura pode ser
     repetida à vontade (mexer em `--phases`, em thresholds do config) sem
     bater na fonte de novo.
+
+    `exclude` tira da lista o que você já acompanha: uma seção chamada
+    "candidatos fora da watchlist" que devolve papel da watchlist gasta as
+    primeiras linhas — as que você lê — repetindo o que já está no relatório.
     """
+    exclude = frozenset(exclude or ())
     min_weeks = int(config.get("data.min_weeks_for_metrics", 21))
     rs_windows = [int(w) for w in config.require("metrics.relative_strength_weeks")]
     rs_weeks = rs_windows[-1] if rs_windows else 12
+    piso = float(config.get("screener.min_weekly_volume", 0) or 0)
 
     bench_bars = cache.get_bars(universe.benchmark)
-    resultado = ScreenResult(universe=universe, phases=tuple(phases))
+    resultado = ScreenResult(universe=universe, phases=tuple(phases), min_liquidity=piso)
 
     for item in universe.as_watchlist():
+        if item.symbol in exclude:
+            continue
         bars = cache.get_bars(item.symbol)
         if bars.empty:
             resultado.problems.append(
@@ -217,8 +242,15 @@ def screen(
         resultado.scanned += 1
         if (analysis.phase.letter or "") not in phases:
             continue
+        # Num universo amplo, o piso de liquidez é o que impede a lista de
+        # encher de papel que não dá para comprar: a leitura Wyckoff de um
+        # candle semanal formado por três negócios é ruído com nome de sinal.
+        liquidez = weekly_liquidity(metrics)
+        if piso and liquidez < piso:
+            resultado.illiquid += 1
+            continue
         idade, ultimo = _weeks_since_event(analysis)
-        resultado.candidates.append(Candidate(analysis, idade, ultimo))
+        resultado.candidates.append(Candidate(analysis, idade, ultimo, liquidez))
 
     resultado.candidates.sort(key=lambda c: c.sort_key(rs_weeks))
     if limit:
@@ -258,6 +290,7 @@ def to_frame(result: ScreenResult, config: Config) -> pd.DataFrame:
             "range_suporte": tr.support if tr else None,
             "range_resistencia": tr.resistance if tr else None,
             "range_ativo": bool(a.active_range),
+            "liquidez_semanal": round(c.liquidity),
         }
         for w in rs_windows:
             linha[f"rs_{w}w"] = a.value(f"rs_{w}w")

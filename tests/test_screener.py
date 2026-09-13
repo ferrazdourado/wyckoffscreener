@@ -87,6 +87,14 @@ def popular(cache, symbol, bars):
     cache.upsert_bars(symbol, bars)
 
 
+@pytest.fixture(autouse=True)
+def sem_piso_de_liquidez(config):
+    """As fixtures sintéticas negociam R$ 1.000 por semana — abaixo de qualquer
+    piso realista. Os testes de fase/ordenação desligam o filtro; os testes de
+    liquidez ligam de volta, explicitamente."""
+    config.data["screener"]["min_weekly_volume"] = 0
+
+
 @pytest.fixture
 def universo():
     return Universe("teste", "b3", "^BVSP",
@@ -183,3 +191,50 @@ def test_check_universe_separa_vivos_de_mortos():
     assert vivos == ["VIVO.SA"]
     assert [s for s, _ in mortos] == ["MORTO.SA", "VAZIO.SA"]
     assert "deslistado" in mortos[0][1]
+
+
+# --------------------------- liquidez e exclusão (universo amplo) ---------------------------
+
+def test_liquidez_usa_mediana_e_nao_media():
+    """Uma semana de leilão não pode promover papel que não negocia no resto."""
+    import pandas as pd
+
+    from src.screener import weekly_liquidity
+
+    metrics = pd.DataFrame({
+        "close": [10.0] * 12,
+        "volume": [100.0] * 11 + [1_000_000.0],
+    })
+    assert weekly_liquidity(metrics) == pytest.approx(1000.0)
+
+
+def test_liquidez_de_serie_vazia_e_zero():
+    import pandas as pd
+
+    from src.screener import weekly_liquidity
+
+    assert weekly_liquidity(pd.DataFrame()) == 0.0
+
+
+def test_papel_abaixo_do_piso_de_liquidez_sai_da_lista(config, universo, cache_povoado):
+    """Num universo amplo é o que impede a lista de encher de papel intradável."""
+    config.data["screener"]["min_weekly_volume"] = 10**12
+    resultado = screen(universo, config, cache_povoado)
+    assert resultado.candidates == []
+    assert resultado.illiquid > 0
+
+
+def test_piso_zero_desliga_o_filtro(config, universo, cache_povoado):
+    config.data["screener"]["min_weekly_volume"] = 0
+    assert screen(universo, config, cache_povoado).illiquid == 0
+
+
+def test_papel_da_watchlist_nao_volta_como_candidato(config, universo, cache_povoado):
+    """A seção chama-se "fora da watchlist": repetir o que já está no relatório
+    gastaria as primeiras linhas, que são as que o usuário lê."""
+    todos = screen(universo, config, cache_povoado)
+    assert todos.candidates, "fixture precisa produzir ao menos um candidato"
+    alvo = todos.candidates[0].symbol
+    filtrado = screen(universo, config, cache_povoado, exclude={alvo})
+    assert alvo not in [c.symbol for c in filtrado.candidates]
+    assert filtrado.scanned == todos.scanned - 1

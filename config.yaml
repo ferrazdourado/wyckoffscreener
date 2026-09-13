@@ -180,7 +180,7 @@ alerts:
 # `.env.example`), que o `wyckoff` carrega sozinho; variável já exportada na
 # sessão vence o arquivo. `wyckoff validate` mostra o que foi carregado.
 notify:
-  enabled: false
+  enabled: true
   backend: telegram        # telegram | email
   max_chars: 4096          # limite de uma mensagem do Telegram
   telegram:
@@ -208,6 +208,15 @@ screener:
   # quiser acompanhar a causa sendo construída antes do gatilho.
   phases: [C, D]
   top: 25
+  # Piso de liquidez do candidato: mediana do volume financeiro semanal das
+  # últimas 12 semanas, NA MOEDA DO PAPEL (reais na B3, dólares nos EUA — é um
+  # número só, e é por isso que ele não se chama `_brl`). Num universo amplo é o que impede a
+  # lista de encher de papel que não dá para comprar — a leitura Wyckoff de um
+  # candle semanal formado por três negócios é ruído com nome de sinal.
+  # 0 desliga o filtro.
+  min_weekly_volume: 2000000
+  # Universos varridos por `wyckoff report --screen`.
+  report_universes: [b3_completa, us_large]
 
 # --- R10: contagem de causa (Ponto & Figura) ------------------------------
 # Estimativa grosseira: o insumo é o candle SEMANAL, não intradiário. Serve

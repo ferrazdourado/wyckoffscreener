@@ -127,3 +127,32 @@ def levels_configured(watchlist) -> tuple[int, int]:
     total = len(watchlist)
     with_level = sum(1 for item in watchlist if item.invalidation is not None)
     return with_level, total
+
+
+def suggest_invalidation(analysis) -> tuple[float, str] | None:
+    """Nível de invalidação derivado do range detectado: (preço, direção).
+
+    Ponto de partida, não leitura do usuário — por isso quem mostra sempre diz
+    de onde veio. A regra não é a mesma para todas as fases:
+
+    * **distribuição** → a resistência do range: a tese morre se o preço
+      escapar por cima.
+    * **acumulação em Fase E** → a resistência ROMPIDA, que virou suporte. O
+      piso do range já ficou longe demais para trás; um alerta lá só dispararia
+      muito depois de a tese ter morrido.
+    * **demais fases de acumulação** → o suporte do range.
+
+    Sem range em vigor não há de onde derivar, e devolver um palpite seria pior
+    do que não responder.
+    """
+    tr = getattr(analysis, "governing_range", None)
+    if tr is None:
+        return None
+    fase = analysis.phase
+    if fase.bias == "distribuicao":
+        return float(tr.resistance), "above"
+    if fase.bias == "acumulacao":
+        if (fase.letter or "") == "E":
+            return float(tr.resistance), "below"
+        return float(tr.support), "below"
+    return None
