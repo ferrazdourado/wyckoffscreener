@@ -1,0 +1,105 @@
+# Rotina de sexta-feira, na nuvem.
+#
+# Por que existe: `wyckoff report` é um job em lote de ~5 min por semana, não um
+# serviço. O cron do GitHub Actions cobre isso sem custo (repo público: ilimitado;
+# privado: ~20 min/mês dos 2.000 do tier gratuito).
+#
+# O que precisa estar configurado em Settings → Secrets and variables → Actions:
+#   WYCKOFF_TELEGRAM_TOKEN    obrigatório p/ o --notify (R9)
+#   WYCKOFF_TELEGRAM_CHAT_ID  idem
+#   WYCKOFF_BRAPI_TOKEN       opcional, fonte alternativa da B3 (P2)
+# Sem os dois primeiros o relatório é gerado assim mesmo; só o envio falha.
+
+name: Relatório semanal
+
+on:
+  schedule:
+    # 22:30 UTC de sexta = 19:30 BRT. Escolhido para cair depois do fechamento
+    # dos DOIS mercados no pior caso: B3 às 20:00 UTC e NYSE às 21:00 UTC
+    # (horário de inverno americano), com folga para o Yahoo consolidar a semana.
+    - cron: "30 22 * * 5"
+  workflow_dispatch:
+    inputs:
+      screen:
+        description: "Garimpar candidatos novos (--screen)"
+        type: boolean
+        default: true
+      notify:
+        description: "Mandar o resumo pelo Telegram (--notify)"
+        type: boolean
+        default: true
+
+# Duas execuções simultâneas brigariam pelo mesmo SQLite.
+concurrency:
+  group: relatorio-semanal
+  cancel-in-progress: false
+
+jobs:
+  relatorio:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Instalar
+        run: pip install -e .
+
+      # O cache guarda o SQLite entre as semanas: com ele o fetch só busca a
+      # semana nova. A chave muda toda semana (senão o cache nunca é regravado);
+      # o restore-keys pega o da semana anterior como ponto de partida.
+      # Se o cache sumir (7 dias sem uso, ou 10 GB no repo), o fetch rebaixa as
+      # 120 semanas — custa minutos, não quebra a rotina.
+      - name: Data de hoje (chave do cache)
+        id: semana
+        run: echo "tag=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+
+      - name: Restaurar o cache de cotações
+        uses: actions/cache@v4
+        with:
+          path: data/wyckoff.sqlite
+          key: wyckoff-sqlite-${{ steps.semana.outputs.tag }}
+          restore-keys: wyckoff-sqlite-
+
+      - name: Gerar o relatório
+        env:
+          WYCKOFF_TELEGRAM_TOKEN: ${{ secrets.WYCKOFF_TELEGRAM_TOKEN }}
+          WYCKOFF_TELEGRAM_CHAT_ID: ${{ secrets.WYCKOFF_TELEGRAM_CHAT_ID }}
+          WYCKOFF_BRAPI_TOKEN: ${{ secrets.WYCKOFF_BRAPI_TOKEN }}
+        run: |
+          args=""
+          # No cron os inputs vêm vazios; só o disparo manual pode desligar cada um.
+          if [ "${{ github.event_name != 'workflow_dispatch' || inputs.screen }}" = "true" ]; then args="$args --screen"; fi
+          if [ "${{ github.event_name != 'workflow_dispatch' || inputs.notify }}" = "true" ]; then args="$args --notify"; fi
+          wyckoff report $args
+
+      # reports/ está no .gitignore, então o relatório sai como artifact em vez
+      # de commit: baixa em Actions → o run → Artifacts.
+      - name: Publicar o relatório
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relatorio-${{ steps.semana.outputs.tag }}
+          path: |
+            reports/
+            exports/
+          if-no-files-found: warn
+          retention-days: 90
+
+      # Os alertas de invalidação e os eventos da semana ficam visíveis na
+      # própria página do run, sem precisar baixar nada.
+      - name: Resumo na página do run
+        if: always()
+        run: |
+          arquivo=$(ls -t reports/*.md 2>/dev/null | head -1)
+          if [ -n "$arquivo" ]; then
+            head -60 "$arquivo" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Nenhum relatório gerado." >> "$GITHUB_STEP_SUMMARY"
+          fi
