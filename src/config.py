@@ -94,6 +94,7 @@ DEFAULTS: dict[str, Any] = {
         "enabled": False,
         "backend": "telegram",
         "max_chars": 4096,
+        "attach_pdf": False,
         "telegram": {
             "token_env": "WYCKOFF_TELEGRAM_TOKEN",
             "chat_id_env": "WYCKOFF_TELEGRAM_CHAT_ID",

@@ -28,6 +28,10 @@ on:
         description: "Mandar o resumo pelo Telegram (--notify)"
         type: boolean
         default: true
+      pdf:
+        description: "Exportar o PDF e anexá-lo à notificação (--pdf)"
+        type: boolean
+        default: true
 
 # Duas execuções simultâneas brigariam pelo mesmo SQLite.
 concurrency:
@@ -77,6 +81,10 @@ jobs:
           # No cron os inputs vêm vazios; só o disparo manual pode desligar cada um.
           if [ "${{ github.event_name != 'workflow_dispatch' || inputs.screen }}" = "true" ]; then args="$args --screen"; fi
           if [ "${{ github.event_name != 'workflow_dispatch' || inputs.notify }}" = "true" ]; then args="$args --notify"; fi
+          # O Chrome já vem instalado no ubuntu-latest, em /usr/bin/google-chrome,
+          # que é o primeiro caminho que o pdf.py procura. Com notify.attach_pdf
+          # ligado, o PDF gerado aqui vai junto do resumo no Telegram.
+          if [ "${{ github.event_name != 'workflow_dispatch' || inputs.pdf }}" = "true" ]; then args="$args --pdf"; fi
           wyckoff report $args
 
       # reports/ está no .gitignore, então o relatório sai como artifact em vez

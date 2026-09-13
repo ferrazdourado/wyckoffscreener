@@ -13,6 +13,12 @@ explícita e diz qual exportar — em vez de um 401 críptico da API.
 envio só acontece com `wyckoff notify` ou `wyckoff report --notify`. Gerar
 relatório nunca dispara mensagem por conta própria.
 
+**O anexo é conforto, o texto é o entregável.** Com `notify.attach_pdf`, o PDF
+da semana segue junto do resumo — no Telegram como documento, no e-mail como
+anexo. Se o anexo falhar (arquivo grande demais, API recusando), o texto já
+chegou e o motivo vai na linha de log; virar "notificação NÃO enviada" seria
+mentira.
+
 O transporte é injetável (`send_fn`) para os testes exercitarem formatação,
 truncamento e tratamento de erro sem tocar a rede.
 """
@@ -21,17 +27,21 @@ from __future__ import annotations
 
 import json
 import os
+import secrets
 import urllib.error
 import urllib.parse
 import urllib.request
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from pathlib import Path
 
 from .config import Config
 
 # Limite de uma mensagem do Telegram. O e-mail não tem limite prático, mas um
 # resumo que não cabe numa tela deixa de ser resumo.
 TELEGRAM_MAX = 4096
+# Limite de arquivo do `sendDocument` de um bot. O relatório da semana pesa ~1 MB.
+TELEGRAM_DOC_MAX_MB = 50
 
 
 class NotifyError(Exception):
@@ -42,6 +52,47 @@ class NotifyError(Exception):
 class Message:
     subject: str
     body: str
+    attachment: Path | None = None
+
+
+def _multipart(fields: dict, files: list[tuple[str, Path]]) -> tuple[bytes, str]:
+    """Codifica multipart/form-data na mão — urllib não faz upload sozinho.
+
+    Vale o punhado de linhas: a alternativa é acrescentar `requests` à árvore de
+    dependências para um POST por semana.
+    """
+    boundary = f"----wyckoff{secrets.token_hex(12)}"
+    partes: list[bytes] = []
+    for nome, valor in fields.items():
+        partes.append(f"--{boundary}\r\n"
+                      f'Content-Disposition: form-data; name="{nome}"\r\n\r\n'
+                      f"{valor}\r\n".encode())
+    for nome, caminho in files:
+        partes.append(f"--{boundary}\r\n"
+                      f'Content-Disposition: form-data; name="{nome}"; '
+                      f'filename="{caminho.name}"\r\n'
+                      f"Content-Type: application/pdf\r\n\r\n".encode())
+        partes.append(caminho.read_bytes())
+        partes.append(b"\r\n")
+    partes.append(f"--{boundary}--\r\n".encode())
+    return b"".join(partes), f"multipart/form-data; boundary={boundary}"
+
+
+def resolve_attachment(config: Config, model: dict, explicit=None) -> Path | None:
+    """Qual PDF anexar ao resumo — nenhum, se `notify.attach_pdf` estiver off.
+
+    `wyckoff report --pdf` sabe o caminho e o passa; `wyckoff notify` sozinho
+    procura o PDF da semana no diretório de relatórios. Nos dois casos um PDF
+    ausente é silêncio, não erro: quem não roda com `--pdf` não muda de
+    comportamento.
+    """
+    if not config.get("notify.attach_pdf", False):
+        return None
+    if explicit is not None:
+        caminho = Path(explicit)
+    else:
+        caminho = Path(config.get("output.reports_dir", "reports")) / f"{model['tag']}.pdf"
+    return caminho if caminho.is_file() else None
 
 
 def _secret(config: Config, path: str, what: str) -> str:
@@ -132,9 +183,14 @@ class TelegramNotifier(Notifier):
         self.chat_id = _secret(config, "notify.telegram.chat_id_env", "o chat_id de destino")
         self._send = send_fn or self._post
 
-    def _post(self, url: str, payload: dict) -> dict:
-        data = urllib.parse.urlencode(payload).encode("utf-8")
-        request = urllib.request.Request(url, data=data, method="POST")
+    def _post(self, url: str, payload: dict, files=None) -> dict:
+        if files:
+            data, content_type = _multipart(payload, files)
+            headers = {"Content-Type": content_type}
+        else:
+            data = urllib.parse.urlencode(payload).encode("utf-8")
+            headers = {}
+        request = urllib.request.Request(url, data=data, headers=headers, method="POST")
         try:
             with urllib.request.urlopen(request, timeout=20) as response:
                 return json.loads(response.read().decode("utf-8"))
@@ -144,14 +200,41 @@ class TelegramNotifier(Notifier):
         except urllib.error.URLError as exc:
             raise NotifyError(f"não foi possível falar com a API do Telegram: {exc.reason}") from exc
 
-    def send(self, message: Message) -> str:
-        resposta = self._send(
-            f"{self.API}/bot{self.token}/sendMessage",
-            {"chat_id": self.chat_id, "text": message.body, "disable_web_page_preview": "true"},
-        )
+    @staticmethod
+    def _conferir(resposta) -> None:
         if isinstance(resposta, dict) and not resposta.get("ok", True):
             raise NotifyError(f"Telegram recusou o envio: {resposta.get('description', resposta)}")
-        return f"Telegram, chat {self.chat_id}"
+
+    def send(self, message: Message) -> str:
+        self._conferir(self._send(
+            f"{self.API}/bot{self.token}/sendMessage",
+            {"chat_id": self.chat_id, "text": message.body, "disable_web_page_preview": "true"},
+        ))
+        destino = f"Telegram, chat {self.chat_id}"
+        if message.attachment is None:
+            return destino
+        return destino + self._enviar_documento(message.attachment)
+
+    def _enviar_documento(self, caminho: Path) -> str:
+        """Segundo envio, depois do texto.
+
+        Não vai como legenda do PDF de propósito: a legenda do Telegram corta em
+        1024 caracteres e mutilaria justamente o resumo que interessa.
+
+        Devolve o sufixo da linha de log — nunca levanta: o texto já foi
+        entregue, e quem lê o terminal precisa saber que o anexo faltou, não que
+        a notificação falhou.
+        """
+        tamanho = caminho.stat().st_size
+        if tamanho > TELEGRAM_DOC_MAX_MB * 1024 * 1024:
+            return (f" (PDF não anexado: {tamanho / 1024 / 1024:.0f} MB, acima do "
+                    f"limite de {TELEGRAM_DOC_MAX_MB} MB do bot)")
+        try:
+            self._conferir(self._send(f"{self.API}/bot{self.token}/sendDocument",
+                                      {"chat_id": self.chat_id}, [("document", caminho)]))
+        except NotifyError as exc:
+            return f" (PDF não anexado: {exc})"
+        return f" + {caminho.name}"
 
 
 class EmailNotifier(Notifier):
@@ -195,8 +278,12 @@ class EmailNotifier(Notifier):
         mail["From"] = self.sender
         mail["To"] = ", ".join(self.to)
         mail.set_content(message.body)
+        if message.attachment is not None:
+            mail.add_attachment(message.attachment.read_bytes(), maintype="application",
+                                subtype="pdf", filename=message.attachment.name)
         self._send(mail)
-        return f"e-mail para {', '.join(self.to)}"
+        destino = f"e-mail para {', '.join(self.to)}"
+        return destino + (f" + {message.attachment.name}" if message.attachment else "")
 
 
 BACKENDS = {"telegram": TelegramNotifier, "email": EmailNotifier}
@@ -212,8 +299,12 @@ def build_notifier(config: Config, send_fn=None) -> Notifier:
     return BACKENDS[backend](config, send_fn=send_fn)
 
 
-def notify(model: dict, config: Config, send_fn=None) -> str:
+def notify(model: dict, config: Config, send_fn=None, attachment=None) -> str:
     """Monta o resumo e envia. Erros viram NotifyError com instrução acionável."""
     notifier = build_notifier(config, send_fn=send_fn)
     limite = int(config.get("notify.max_chars", TELEGRAM_MAX))
-    return notifier.send(build_message(model, config, max_chars=limite))
+    message = build_message(model, config, max_chars=limite)
+    anexo = resolve_attachment(config, model, attachment)
+    if anexo is not None:
+        message = replace(message, attachment=anexo)
+    return notifier.send(message)

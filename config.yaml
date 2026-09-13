@@ -183,6 +183,9 @@ notify:
   enabled: true
   backend: telegram        # telegram | email
   max_chars: 4096          # limite de uma mensagem do Telegram
+  # Manda também o PDF da semana, quando ele existe (`report --pdf`). O resumo
+  # em texto vai de todo jeito: anexo que falha não derruba a notificação.
+  attach_pdf: true
   telegram:
     #   export WYCKOFF_TELEGRAM_TOKEN='123456:ABC...'
     #   export WYCKOFF_TELEGRAM_CHAT_ID='987654321'

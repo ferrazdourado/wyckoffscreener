@@ -47,6 +47,7 @@ wyckoff verify PETR4.SA     # abre a conta de cada métrica p/ conferência manu
 wyckoff add WEGE3.SA --invalidation 45.50
 
 wyckoff report --pdf        # gera também reports/AAAA-SS.pdf          (P2)
+wyckoff report --pdf --notify  # o PDF vai junto do resumo, como anexo
 wyckoff pdf                 # converte para PDF um relatório já gerado (P2)
 wyckoff dashboard           # dashboard local sobre o mesmo SQLite     (P2)
 wyckoff sources PETR4.SA    # põe duas fontes lado a lado no mesmo papel (P2)
@@ -62,6 +63,35 @@ gráficos embutidos), `reports/AAAA-SS.pdf` (com `--pdf`) e
 Referência de 07-08/09/2026, offline: relatório **3,0 s** para 12 papéis ·
 screener **24 s** para 78 · backtest causal **10 s** para 12 × 120 semanas ·
 PDF **2,9 s** (17 páginas, 1,4 MB).
+
+## Rodar na nuvem (GitHub Actions)
+
+`.github/workflows/semanal.yml` executa a rotina de sexta sem a máquina ligada.
+É um job em lote de poucos minutos por semana, não um serviço: o cron do Actions
+cobre isso de graça (repo público: ilimitado; privado: ~20 min/mês dos 2.000 do
+tier gratuito). Por isso não há servidor a manter.
+
+- **Quando:** sexta, 22:30 UTC (19:30 BRT). Mais tarde que as 18h da spec de
+  propósito — a NYSE fecha 21:00 UTC no inverno americano, e 18h BRT pegaria o
+  candle semanal dos papéis US ainda aberto.
+- **O cache sobrevive entre as semanas** via `actions/cache`, com chave
+  `wyckoff-sqlite-<ano-semana>` (a chave precisa mudar toda semana, senão o
+  cache nunca é regravado) e `restore-keys` pegando o da semana anterior. Se o
+  cache expirar, o `fetch` rebaixa as 120 semanas: lento, não quebrado.
+- **O relatório sai como artifact**, não como commit — `reports/` está no
+  `.gitignore`. As 60 primeiras linhas do `.md` vão para o resumo do run, então
+  as invalidações se leem sem baixar nada. E o PDF chega no Telegram.
+- **Segredos** em Settings → Secrets and variables → Actions:
+  `WYCKOFF_TELEGRAM_TOKEN`, `WYCKOFF_TELEGRAM_CHAT_ID` e, se usar,
+  `WYCKOFF_BRAPI_TOKEN`. Sem eles o relatório é gerado igual; só o envio falha.
+- **`--pdf` funciona no runner**: o `ubuntu-latest` já traz o Chrome em
+  `/usr/bin/google-chrome`, o primeiro caminho que o `pdf.py` procura.
+
+Alternativa, se um dia quiser máquina de verdade (dashboard no ar, cron do
+sistema, SQLite em disco): **Oracle Cloud Always Free** — VM ARM gratuita em
+caráter permanente, não trial. Render, Railway e Fly.io não têm mais tier
+gratuito que sirva; o PythonAnywhere free só fala com domínios da whitelist
+deles, o que não serve para o Yahoo.
 
 ## Decisões que valem registro
 
@@ -136,6 +166,21 @@ vez de devolver um 401 da API.
 **Nada é enviado sem pedido.** `notify.enabled` nasce `false`, e mesmo ligado só
 `wyckoff notify` ou `wyckoff report --notify` disparam mensagem. Gerar relatório
 nunca notifica sozinho — tem teste garantindo.
+
+**O PDF vai anexado, não linkado.** A alternativa era mandar no texto um link
+para o relatório no GitHub. Do outro lado desse link estaria um `.zip` de
+artifact num repositório privado: logar no GitHub, baixar, extrair — sexta à
+noite, no celular. E publicar em Pages para evitar o login exporia a watchlist
+inteira. O `sendDocument` entrega o arquivo dentro do Telegram, offline, em um
+toque, e o histórico do chat vira o arquivo morto dos relatórios. O limite do
+bot é 50 MB contra ~1,3 MB do relatório.
+
+**Anexo que falha não vira "nada enviado".** O PDF é um segundo envio, depois do
+texto — e de propósito não é legenda do documento, porque a legenda do Telegram
+corta em 1024 caracteres e mutilaria justamente o resumo. Se o segundo envio
+falhar, o resumo já chegou: o motivo entra na linha de log (`+ 2026-37.pdf` ou
+`(PDF não anexado: ...)`), e o comando não mente dizendo que a notificação
+falhou.
 
 **P&F precisou do candle diário, e isso mudou o `DataProvider`.** A primeira
 versão da contagem de causa (R10) usava o candle semanal e produzia alvos
@@ -445,9 +490,10 @@ src/
   dashboard.py      P2 — Streamlit sobre o mesmo cache e o mesmo modelo
   pipeline.py       orquestração; falha de um ticker não derruba o lote
   cli.py            argparse
+.github/workflows/  semanal.yml — a rotina de sexta rodando no GitHub Actions
 templates/          report.md.j2 + report.html.j2
 universe.yaml       universos do screener: 371 ações da B3, 78 líquidas, 31 US
-tests/              463 testes, sem rede
+tests/              471 testes, sem rede
 ```
 
 ## Estado das fases
@@ -501,7 +547,13 @@ tests/              463 testes, sem rede
   se o sinal é o que você teria marcado no gráfico.
 - **Nenhuma notificação foi enviada de verdade.** O canal foi exercitado só com
   transporte falso nos testes e `--dry-run` no terminal; o primeiro envio real
-  é seu.
+  é seu. Vale também para o anexo: o `sendDocument` e o multipart escrito à mão
+  têm teste, mas nunca passaram pela API do Telegram.
+- **O workflow do Actions nunca rodou.** Dois pontos só o primeiro run resolve:
+  se o Yahoo estrangula (HTTP 429) requisições vindas do IP do runner, e se o
+  Chrome headless aceita rodar lá sem `--no-sandbox` — o comando em `pdf.py` não
+  passa essa flag, o que costuma bastar fora de container, mas é o ponto de
+  falha clássico em CI.
 - O universo do screener foi conferido contra a fonte em 07/09/2026 e limpo, mas
   apodrece sozinho: rode `wyckoff universe --check` de vez em quando.
 

@@ -1,6 +1,7 @@
 """R9 — notificação. Nenhum teste abre socket: o transporte é injetado."""
 
 import datetime as dt
+from pathlib import Path
 
 import pytest
 
@@ -199,3 +200,134 @@ def test_sender_explicito_prevalece(email_config):
     enviadas = []
     notify(modelo(email_config), email_config, send_fn=enviadas.append)
     assert enviadas[0]["From"] == "bot@exemplo.com"
+
+
+# --------------------------- anexo do PDF ---------------------------
+
+@pytest.fixture
+def com_pdf(telegram_config, tmp_path):
+    """Config apontando para um diretório de relatórios com o PDF da semana."""
+    telegram_config.data["notify"]["attach_pdf"] = True
+    telegram_config.data["output"]["reports_dir"] = str(tmp_path)
+    return telegram_config
+
+
+def pdf_da_semana(config, model, tamanho=2048):
+    caminho = Path(config.get("output.reports_dir")) / f"{model['tag']}.pdf"
+    caminho.write_bytes(b"%PDF-1.4\n" + b"\0" * tamanho)
+    return caminho
+
+
+def coletor(erro_no_documento=None):
+    """Transporte falso: registra as chamadas e devolve o que o teste mandar."""
+    enviados = []
+
+    def falso(url, payload, files=None):
+        enviados.append((url, payload, files))
+        if erro_no_documento and url.endswith("sendDocument"):
+            return {"ok": False, "description": erro_no_documento}
+        return {"ok": True}
+
+    return enviados, falso
+
+
+def test_pdf_vai_como_documento_depois_do_texto(com_pdf):
+    """Documento separado, não legenda: a legenda corta em 1024 caracteres."""
+    m = modelo(com_pdf)
+    caminho = pdf_da_semana(com_pdf, m)
+    enviados, falso = coletor()
+
+    destino = notify(m, com_pdf, send_fn=falso)
+
+    assert [u.rsplit("/", 1)[1] for u, _, _ in enviados] == ["sendMessage", "sendDocument"]
+    _, payload, files = enviados[1]
+    assert payload["chat_id"] == "42"
+    assert files == [("document", caminho)]
+    assert destino.endswith(f"+ {caminho.name}")
+
+
+def test_sem_pdf_no_disco_manda_só_o_texto(com_pdf):
+    """Quem não roda com --pdf não muda de comportamento."""
+    enviados, falso = coletor()
+    destino = notify(modelo(com_pdf), com_pdf, send_fn=falso)
+    assert len(enviados) == 1
+    assert destino == "Telegram, chat 42"
+
+
+def test_attach_pdf_desligado_ignora_o_pdf_existente(com_pdf):
+    m = modelo(com_pdf)
+    pdf_da_semana(com_pdf, m)
+    com_pdf.data["notify"]["attach_pdf"] = False
+    enviados, falso = coletor()
+    notify(m, com_pdf, send_fn=falso)
+    assert len(enviados) == 1
+
+
+def test_anexo_explícito_vence_o_do_diretório(com_pdf, tmp_path):
+    """`report --pdf` sabe o caminho que acabou de escrever; ele manda."""
+    m = modelo(com_pdf)
+    pdf_da_semana(com_pdf, m)
+    outro = tmp_path / "outro.pdf"
+    outro.write_bytes(b"%PDF-1.4\n")
+    enviados, falso = coletor()
+
+    notify(m, com_pdf, send_fn=falso, attachment=outro)
+
+    assert enviados[1][2] == [("document", outro)]
+
+
+def test_documento_recusado_não_anula_o_texto_entregue(com_pdf):
+    """O resumo já chegou ao celular; dizer 'não enviado' seria mentira."""
+    m = modelo(com_pdf)
+    pdf_da_semana(com_pdf, m)
+    _, falso = coletor(erro_no_documento="file too big")
+
+    destino = notify(m, com_pdf, send_fn=falso)
+
+    assert destino.startswith("Telegram, chat 42")
+    assert "PDF não anexado" in destino and "file too big" in destino
+
+
+def test_pdf_acima_do_limite_do_bot_nem_é_tentado(com_pdf, monkeypatch):
+    m = modelo(com_pdf)
+    pdf_da_semana(com_pdf, m)
+    monkeypatch.setattr("src.notify.TELEGRAM_DOC_MAX_MB", 0.001)   # 1 KB
+    enviados, falso = coletor()
+
+    destino = notify(m, com_pdf, send_fn=falso)
+
+    assert len(enviados) == 1                      # só o texto foi à rede
+    assert "acima do limite" in destino
+
+
+def test_multipart_carrega_nome_e_bytes_do_arquivo(tmp_path):
+    """Encoder escrito à mão: o teste é o que garante que o corpo é válido."""
+    from src.notify import _multipart
+
+    arquivo = tmp_path / "2026-37.pdf"
+    arquivo.write_bytes(b"%PDF-1.4\nconteudo")
+    corpo, content_type = _multipart({"chat_id": "42"}, [("document", arquivo)])
+
+    boundary = content_type.split("boundary=")[1]
+    assert content_type.startswith("multipart/form-data; ")
+    assert b'name="chat_id"\r\n\r\n42\r\n' in corpo
+    assert b'filename="2026-37.pdf"' in corpo
+    assert b"Content-Type: application/pdf" in corpo
+    assert b"%PDF-1.4\nconteudo" in corpo
+    assert corpo.endswith(f"--{boundary}--\r\n".encode())
+
+
+def test_email_leva_o_pdf_como_anexo(email_config, tmp_path):
+    email_config.data["notify"]["attach_pdf"] = True
+    email_config.data["output"]["reports_dir"] = str(tmp_path)
+    m = modelo(email_config)
+    caminho = pdf_da_semana(email_config, m)
+    enviadas = []
+
+    destino = notify(m, email_config, send_fn=enviadas.append, attachment=caminho)
+
+    anexos = [p for p in enviadas[0].iter_attachments()]
+    assert len(anexos) == 1
+    assert anexos[0].get_filename() == caminho.name
+    assert anexos[0].get_content_type() == "application/pdf"
+    assert destino.endswith(f"+ {caminho.name}")

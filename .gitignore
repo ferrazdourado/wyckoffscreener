@@ -13,3 +13,6 @@ reports/*.pdf
 .env
 .env.*
 !.env.example
+
+# Lixo do Finder.
+.DS_Store

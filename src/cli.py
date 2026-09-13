@@ -398,9 +398,11 @@ def cmd_report(args) -> int:
         print("\n  Nenhum evento Wyckoff na semana.")
     if fetch_errors:
         print(f"\n  {len(fetch_errors)} erro(s) de coleta — ver seção 5 do relatório.")
-    codigo = _exportar_pdf(paths.html, config) if args.pdf else 0
+    pdf_path = _exportar_pdf(paths.html, config) if args.pdf else None
+    codigo = 1 if args.pdf and pdf_path is None else 0
     if args.notify:
-        return _notificar(model, config) or codigo
+        # O PDF recém-gerado vai junto do resumo; sem `--pdf`, nada muda.
+        return _notificar(model, config, attachment=pdf_path) or codigo
     return codigo
 
 
@@ -496,12 +498,12 @@ def cmd_analyze(args) -> int:
     return 0
 
 
-def _notificar(model, config) -> int:
+def _notificar(model, config, attachment=None) -> int:
     """Envia o resumo. Falha de envio não invalida o relatório já gerado."""
     from .notify import NotifyError, notify
 
     try:
-        destino = notify(model, config)
+        destino = notify(model, config, attachment=attachment)
     except NotifyError as exc:
         print(f"\nNotificação NÃO enviada: {exc}", file=sys.stderr)
         return 1
@@ -646,18 +648,22 @@ def cmd_universe(args) -> int:
     return 1 if total_mortos else 0
 
 
-def _exportar_pdf(html_path, config) -> int:
-    """Conversão compartilhada por `report --pdf` e `pdf` (P2)."""
+def _exportar_pdf(html_path, config):
+    """Conversão compartilhada por `report --pdf` e `pdf` (P2).
+
+    Devolve o caminho do PDF (ou None, se falhou) porque `report --notify`
+    precisa dele para anexar — o código de saída sai daí nos dois chamadores.
+    """
     from .pdf import PdfError, to_pdf
 
     try:
         caminho, motor = to_pdf(html_path, config=config)
     except PdfError as exc:
         print(f"\nPDF não gerado — {exc}", file=sys.stderr)
-        return 1
+        return None
     tamanho = caminho.stat().st_size / 1024
     print(f"  PDF:      {caminho}  ({tamanho:,.0f} KB, via {motor})")
-    return 0
+    return caminho
 
 
 def cmd_pdf(args) -> int:
@@ -673,7 +679,7 @@ def cmd_pdf(args) -> int:
             return 1
         html_path = existentes[-1]
     print(f"Convertendo {html_path}...")
-    return _exportar_pdf(html_path, config)
+    return 0 if _exportar_pdf(html_path, config) else 1
 
 
 def cmd_dashboard(args) -> int:
