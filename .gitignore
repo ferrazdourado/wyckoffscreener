@@ -8,3 +8,8 @@ reports/*.md
 reports/*.html
 reports/*/
 reports/*.pdf
+
+# Segredos: token da brapi, do Telegram, senha de SMTP. Nunca versionar.
+.env
+.env.*
+!.env.example

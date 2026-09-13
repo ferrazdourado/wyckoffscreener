@@ -120,7 +120,7 @@ events:
     # Calibre de R11. 1 = regra literal da spec (qualquer nova mínima do range
     # conta como perfuração do suporte). 2+ exige que o suporte já tenha sido
     # testado antes — nos dados de 07/09/2026 isso descarta 7 dos 42 springs.
-    min_support_touches: 1
+    min_support_touches: 2
     touch_tolerance_atr: 0.5
   test:
     # Janela de busca do teste depois do spring.

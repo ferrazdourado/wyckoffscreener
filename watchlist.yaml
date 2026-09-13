@@ -4,6 +4,11 @@
 #   market       (obrigatório) b3 | us
 #   benchmark    (opcional)    índice de referência; default por mercado
 #   invalidation (opcional)    { price: <float>, direction: below|above }
+#                              nível que, se o FECHAMENTO SEMANAL violar, diz que
+#                              a leitura do papel está errada. Não é stop: stop é
+#                              gestão de posição, isto é gestão de tese.
+#                              below = tese de acumulação (invalida caindo)
+#                              above = tese de distribuição (invalida subindo)
 #   range        (opcional)    { support: <float>, resistance: <float> } — prevalece sobre o detectado
 #   notes        (opcional)    texto livre
 #   calendar     (opcional)    lista de { date: AAAA-MM-DD, label: <texto> }
@@ -16,26 +21,48 @@ defaults:
 tickers:
   - symbol: BBAS3.SA
     market: b3
+    invalidation: {price: 21.59, direction: below}
+    notes: "Invalidação: resistência rompida do range 18,78–21,59 (Fase E): invalida o rompimento. Definida em 12/09/2026 a partir do range detectado."
   - symbol: B3SA3.SA
     market: b3
+    invalidation: {price: 16.41, direction: below}
+    notes: "Invalidação: resistência rompida do range 14,00–16,41 (Fase E): invalida o rompimento. Definida em 12/09/2026 a partir do range detectado."
   - symbol: VALE3.SA
     market: b3
+    invalidation: {price: 69.62, direction: below}
+    notes: "Invalidação: suporte do range 69,62–82,76: invalida a leitura de acumulação. Definida em 12/09/2026 a partir do range detectado."
   - symbol: PETR4.SA
     market: b3
+    invalidation: {price: 42.17, direction: below}
+    notes: "Invalidação: resistência rompida do range 36,26–42,17 (Fase E): invalida o rompimento. Definida em 12/09/2026 a partir do range detectado."
   - symbol: EMBJ3.SA
     market: b3
     notes: "Verificar continuidade da série — mudança de ticker em 2025 (questão aberta na spec §8)."
   - symbol: PRIO3.SA
     market: b3
+    invalidation: {price: 55.28, direction: below}
+    notes: "Invalidação: suporte do range 55,28–65,24: invalida a leitura de acumulação. Definida em 12/09/2026 a partir do range detectado."
   - symbol: BBSE3.SA
     market: b3
+    invalidation: {price: 33.49, direction: below}
+    notes: "Invalidação: suporte do range 33,49–40,77: invalida a leitura de acumulação. Definida em 12/09/2026 a partir do range detectado."
   - symbol: ITUB4.SA
     market: b3
+    invalidation: {price: 37.33, direction: below}
+    notes: "Invalidação: suporte do range 37,33–44,60: invalida a leitura de acumulação. Definida em 12/09/2026 a partir do range detectado."
   - symbol: BAC
     market: us
+    invalidation: {price: 53.3, direction: below}
+    notes: "Invalidação: suporte do range 53,30–63,65: invalida a leitura de acumulação. Definida em 12/09/2026 a partir do range detectado."
   - symbol: SBUX
     market: us
+    invalidation: {price: 108.61, direction: above}
+    notes: "Invalidação: resistência do range 88,79–108,61: invalida a leitura de distribuição. Definida em 12/09/2026 a partir do range detectado."
   - symbol: JNJ
     market: us
+    invalidation: {price: 226.38, direction: below}
+    notes: "Invalidação: suporte do range 226,38–281,07: invalida a leitura de acumulação. Definida em 12/09/2026 a partir do range detectado."
   - symbol: MDLZ
     market: us
+    invalidation: {price: 66.65, direction: above}
+    notes: "Invalidação: resistência do range 57,78–66,65: invalida a leitura de distribuição. Definida em 12/09/2026 a partir do range detectado."
