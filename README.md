@@ -514,22 +514,17 @@ tests/              471 testes, sem rede
   vezes: EMBJ3 sem descontinuidade e sem semanas de volume zero (07/09/2026); e
   agora contra a própria brapi.dev, com números na seção "O que as duas fontes
   dizem do mesmo papel". Fallback definido e implementado, desligado por padrão.
-- **Níveis de invalidação por papel (R7).** A máquina está pronta e testada, mas
-  **nenhum papel tem nível preenchido** na watchlist — a seção 1 do relatório
-  avisa isso em toda execução e não tem como alertar nada até você preencher.
-  Use `wyckoff add TICKER --invalidation PREÇO` ou edite a watchlist:
-  ```yaml
-  - symbol: PETR4.SA
-    market: b3
-    invalidation: {price: 44.00, direction: below}
-  ```
-- ~~Telegram ou e-mail para R9~~ — os dois implementados; escolha em
-  `notify.backend`. Falta você exportar as credenciais:
+- **Níveis de invalidação por papel (R7).** 11 dos 12 preenchidos em
+  12/09/2026. Falta **EMBJ3.SA** — de propósito: é o papel cuja série mudou de
+  ticker em 2025, e um nível tirado de um range que pode estar contaminado não
+  vale nada. Enquanto estiver vazio, R7 não tem o que alertar nesse papel.
+  Quando decidir o preço:
   ```bash
-  export WYCKOFF_TELEGRAM_TOKEN='...'   # ou WYCKOFF_SMTP_USER/PASSWORD
-  export WYCKOFF_TELEGRAM_CHAT_ID='...'
+  wyckoff add EMBJ3.SA --invalidation PREÇO
   ```
-  e ligar `notify.enabled: true` no config.
+- ~~Telegram ou e-mail para R9~~ — Telegram, funcionando. Credenciais no `.env`
+  local e nos secrets do Actions, `notify.enabled: true`. Resumo e PDF chegaram
+  ao chat em 13-14/09/2026, gerados na nuvem.
 
 ## O que ainda não foi verificado
 
@@ -545,15 +540,19 @@ tests/              471 testes, sem rede
   recall, ≤ 3 falsos positivos por relatório) ainda depende de você revisar
   alguns relatórios. O backtest mede o que acontece *depois* do sinal; não mede
   se o sinal é o que você teria marcado no gráfico.
-- **Nenhuma notificação foi enviada de verdade.** O canal foi exercitado só com
-  transporte falso nos testes e `--dry-run` no terminal; o primeiro envio real
-  é seu. Vale também para o anexo: o `sendDocument` e o multipart escrito à mão
-  têm teste, mas nunca passaram pela API do Telegram.
-- **O workflow do Actions nunca rodou.** Dois pontos só o primeiro run resolve:
-  se o Yahoo estrangula (HTTP 429) requisições vindas do IP do runner, e se o
-  Chrome headless aceita rodar lá sem `--no-sandbox` — o comando em `pdf.py` não
-  passa essa flag, o que costuma bastar fora de container, mas é o ponto de
-  falha clássico em CI.
+- ~~Nenhuma notificação foi enviada de verdade~~ — resumo recebido no Telegram
+  em 13/09/2026 e PDF anexado em 14/09/2026, os dois a partir do Actions. O
+  `sendDocument` e o multipart escrito à mão passaram pela API real.
+- ~~O workflow do Actions nunca rodou~~ — rodou, e resolveu as duas incógnitas:
+  o **Yahoo não estrangulou** o IP do runner (12 papéis + índices + universo do
+  screener numa tacada), e o **Chrome headless roda sem `--no-sandbox`** no
+  `ubuntu-latest`. O runner só não tem as fontes da sua máquina: o matplotlib
+  cai na DejaVu, o que muda o desenho dos rótulos e nada mais.
+- **O cron automático ainda não disparou.** Todos os runs até aqui foram
+  `workflow_dispatch` manual. O primeiro agendado é sexta, 18/09/2026, 22:30 UTC.
+- **O caminho incremental do cache não foi exercitado.** O primeiro run criou o
+  SQLite do zero; quem prova o `restore-keys` é o segundo — se falhar, o sintoma
+  é um run lento rebaixando 120 semanas, não um relatório errado.
 - O universo do screener foi conferido contra a fonte em 07/09/2026 e limpo, mas
   apodrece sozinho: rode `wyckoff universe --check` de vez em quando.
 
