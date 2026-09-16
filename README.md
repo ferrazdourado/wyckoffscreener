@@ -33,6 +33,7 @@ wyckoff report --screen     # o mesmo, e garimpa candidatos fora da watchlist
 wyckoff report --notify     # o mesmo, e manda o resumo pelo canal configurado
 
 wyckoff screen b3_completa  # varre as 371 ações da B3 e ranqueia quem está em Fase C/D
+wyckoff screen us_completa  # o mesmo para as 518 dos EUA (S&P 500 + Nasdaq-100)
 wyckoff screen b3_liquidas  # o mesmo, na lista curta de 78 nomes conferidos
 wyckoff backtest            # mede o que vem depois de cada regra (calibragem)
 wyckoff notify --dry-run    # mostra a mensagem sem enviar
@@ -301,6 +302,21 @@ o mesmo papel em lote ímpar e duplicaria a lista), direitos e recibos de
 subscrição, BDRs e fundos. Não é lista curada — é o mercado inteiro, e é por
 isso que o piso de liquidez existe.
 
+### Universo amplo dos EUA
+
+`us_completa` tem **518 papéis**: a união do S&P 500 (503) com o Nasdaq-100
+(102), pela Wikipédia em 14/09/2026 — a sobreposição é quase total, e os 15 que
+só o Nasdaq-100 traz são em boa parte empresa estrangeira, que o S&P 500 não
+aceita por regra (ASML, ARM, SHOP, MELI, PDD, FER, CCEP, TRI). Símbolo de classe
+vai com hífen, do jeito que o Yahoo quer: `BRK-B`, não `BRK.B`. E `ON` (ON
+Semiconductor) vai entre aspas no YAML, senão é lido como o booleano `true`.
+
+Aqui o piso de liquidez quase não filtra: `screener.min_weekly_volume` é um
+número só, em moeda do papel, e os US$ 2M/semana do default não excluem nada num
+índice onde o menor nome negocia muito mais que isso. O que limita a lista é
+`--top`, e o que a ordena é a fase. Se um dia isso incomodar, o piso precisaria
+ser por universo — hoje não é.
+
 ## Divergências da spec, e por quê
 
 Três pontos onde a implementação vai além da letra do §R5/R6. Todos
@@ -492,7 +508,7 @@ src/
   cli.py            argparse
 .github/workflows/  semanal.yml — a rotina de sexta rodando no GitHub Actions
 templates/          report.md.j2 + report.html.j2
-universe.yaml       universos do screener: 371 ações da B3, 78 líquidas, 31 US
+universe.yaml       universos do screener: 371 ações da B3, 78 líquidas, 518 US, 31 US líquidas
 tests/              471 testes, sem rede
 ```
 
