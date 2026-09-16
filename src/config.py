@@ -26,6 +26,15 @@ DEFAULTS: dict[str, Any] = {
         # P2: fonte plugável. `default` atende todo mundo; `by_market` troca a
         # fonte de um mercado; `fallback` é tentado quando a principal falha.
         "source": {"default": "yfinance", "by_market": {}, "fallback": []},
+        # Ritmo da coleta — o Yahoo corta o IP em varredura grande e o corte
+        # se disfarça de ticker deslistado. Ver src/data/throttle.py.
+        "fetch": {
+            "min_interval": 0.5,
+            "retries": 2,
+            "backoff": [3, 15],
+            "cooldown_after": 5,
+            "cooldown": 60,
+        },
         "brapi": {
             "token_env": "WYCKOFF_BRAPI_TOKEN",
             "base_url": "https://brapi.dev/api",

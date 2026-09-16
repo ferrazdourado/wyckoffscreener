@@ -27,6 +27,7 @@ import pandas as pd
 
 from ..config import Config
 from .provider import DataProvider, FetchError, YFinanceProvider
+from .throttle import ThrottledProvider, policy_from_config
 
 # Sufixo do Yahoo para papel brasileiro; usado só quando ninguém informou o
 # mercado do símbolo (o screener e a watchlist informam).
@@ -120,14 +121,22 @@ BUILDERS = {
 
 
 def build_single(name: str, config: Config) -> DataProvider:
-    """Uma fonte pelo nome que o config usa."""
+    """Uma fonte pelo nome que o config usa, já com ritmo de coleta.
+
+    O ritmo (`data.fetch`) é montado **por fonte**, não em volta da cadeia: se
+    o Yahoo estrangula o IP, a insistência tem que acontecer antes de a cadeia
+    desistir e chamar a brapi — trocar de fonte por causa de um corte temporário
+    é trocar por causa de nada.
+    """
     builder = BUILDERS.get(str(name).lower())
     if builder is None:
         raise ProviderError(
             f"fonte de dados desconhecida: `{name}` — as disponíveis são "
             f"{', '.join(sorted(BUILDERS))}."
         )
-    return builder(config)
+    provider = builder(config)
+    policy = policy_from_config(config)
+    return ThrottledProvider(provider, policy) if policy.active else provider
 
 
 def _chain(primeira: str, config: Config) -> DataProvider:

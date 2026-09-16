@@ -12,6 +12,24 @@ data:
   cache_path: data/wyckoff.sqlite
   # Se já houve fetch bem-sucedido hoje, reusa o cache (R2: não rebaixar no mesmo dia).
   refetch_same_day: false
+  # Ritmo da coleta. Existe porque o Yahoo corta o IP em varredura grande e o
+  # corte se disfarça de ticker deslistado: série vazia, sem aviso. Ver
+  # src/data/throttle.py.
+  fetch:
+    # Piso de segundos entre duas requisições à MESMA fonte. 0 desliga.
+    # A 0,5s a varredura de 518 papéis leva ~9 min e não é cortada.
+    min_interval: 0.5
+    # Retentativas por símbolo depois da primeira falha. Cobre o soluço
+    # isolado; não é o que resolve estrangulamento (ver cooldown abaixo).
+    retries: 2
+    # Espera antes de cada retentativa. Lista mais curta que `retries` repete
+    # o último valor.
+    backoff: [3, 15]
+    # Falhas CONSECUTIVAS que passam a parecer corte de IP, não papel morto.
+    # Ticker morto é falha isolada; estrangulamento vem em série.
+    cooldown_after: 5
+    # Pausa longa, uma vez, quando a série de falhas chega ao limite acima.
+    cooldown: 60
   # Horário de fechamento do pregão por mercado, usado para saber se a
   # semana corrente já fechou (R2: sinalizar candle semanal não fechado).
   market_hours:

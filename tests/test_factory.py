@@ -34,6 +34,12 @@ class Falsa(DataProvider):
         return pd.DataFrame(columns=["date", "kind", "value"])
 
 
+def crua(provider: DataProvider) -> DataProvider:
+    """A fonte por baixo do ritmo de coleta (`data.fetch`, ligado por default)."""
+    from src.data.throttle import ThrottledProvider
+    return provider.inner if isinstance(provider, ThrottledProvider) else provider
+
+
 def config(**data) -> Config:
     import copy
     bruto = copy.deepcopy(DEFAULTS)
@@ -104,9 +110,19 @@ def test_market_of_injetado_vence_o_palpite_pelo_sufixo():
 
 # --------------------------- build_provider ---------------------------
 
-def test_config_padrao_entrega_o_yfinance_puro():
+def test_config_padrao_entrega_o_yfinance_com_ritmo_de_coleta():
     from src.data.provider import YFinanceProvider
-    assert isinstance(build_provider(config()), YFinanceProvider)
+    from src.data.throttle import ThrottledProvider
+    provider = build_provider(config())
+    # Fonte única, sem cadeia nem roteamento — mas embrulhada no ritmo, que o
+    # default liga: varredura grande sem pausa é IP cortado.
+    assert isinstance(provider, ThrottledProvider)
+    assert isinstance(provider.inner, YFinanceProvider)
+
+
+def test_ritmo_desligado_no_config_entrega_a_fonte_crua():
+    from src.data.provider import YFinanceProvider
+    assert isinstance(build_provider(config(fetch={})), YFinanceProvider)
 
 
 def test_fonte_desconhecida_falha_dizendo_quais_existem():
@@ -124,7 +140,7 @@ def test_fallback_igual_a_principal_nao_duplica_a_fonte():
     from src.data.provider import YFinanceProvider
     provider = build_provider(config(source={"default": "yfinance", "by_market": {},
                                              "fallback": ["yfinance"]}))
-    assert isinstance(provider, YFinanceProvider)
+    assert isinstance(crua(provider), YFinanceProvider)
 
 
 def test_by_market_vira_roteamento():
@@ -132,12 +148,12 @@ def test_by_market_vira_roteamento():
                                              "fallback": []}), market="b3")
     from src.data.brapi import BrapiProvider
     assert isinstance(provider, RoutingProvider)
-    assert isinstance(provider._for("PETR4.SA"), BrapiProvider)
+    assert isinstance(crua(provider._for("PETR4.SA")), BrapiProvider)
 
 
 def test_token_da_brapi_vem_do_ambiente_e_nunca_do_arquivo(monkeypatch):
     monkeypatch.setenv("WYCKOFF_BRAPI_TOKEN", "segredo-do-ambiente")
-    provider = build_single("brapi", config())
+    provider = crua(build_single("brapi", config()))
     assert provider.token == "segredo-do-ambiente"
 
 
@@ -145,4 +161,4 @@ def test_sem_variavel_exportada_a_fonte_roda_sem_token(monkeypatch):
     """A camada gratuita atende alguns papéis; falhar aqui seria prematuro —
     o 401 é que explica o que fazer."""
     monkeypatch.delenv("WYCKOFF_BRAPI_TOKEN", raising=False)
-    assert build_single("brapi", config()).token == ""
+    assert crua(build_single("brapi", config())).token == ""

@@ -117,6 +117,34 @@ todos os preços ficam na mesma base.
 erro — B3 e US têm calendários distintos (18 das 120 semanas do EMBJ3 têm menos
 de 5 pregões). **Semanas com data-ex ficam marcadas** (`ex_dividend`/`ex_split`).
 
+**Estrangulamento de IP se disfarça de ticker deslistado.** Varrendo os 518
+papéis de `us_completa` em 14/09/2026, o Yahoo parou de responder depois de
+~318 requisições: os 200 seguintes voltaram com "possibly delisted; no price
+data found". Nenhum estava deslistado — HII, HLT e ZTS respondiam um minuto
+depois, um a um. A fonte não avisa que você está rápido demais; ela devolve
+série vazia, que é o que devolveria para papel morto. **A truncagem é
+alfabética, então o resultado parece uma lista normal** — e num runner do
+GitHub Actions ninguém está olhando.
+
+Daí `data.fetch` (`src/data/throttle.py`), que decora qualquer fonte com três
+defesas em ordem de custo:
+
+| defesa | para que serve | default |
+|---|---|---|
+| `min_interval` | não provocar o corte | 0,5s entre requisições |
+| `retries`/`backoff` | soluço isolado da fonte | 2 retentativas, 3s e 15s |
+| `cooldown_after`/`cooldown` | corte de IP já instalado | 60s após 5 falhas seguidas |
+
+A terceira é a que enxerga o problema pelo que ele é. **O que separa papel
+morto de IP cortado não está numa requisição, está na sequência delas:** ticker
+morto é falha isolada no meio de sucessos — o caso da B3, onde papel morre de
+verdade — e estrangulamento vem em série. Por isso retentativa sozinha não
+resolveria: num universo cortado, cada um dos 200 papéis insistiria três vezes
+à toa, e num universo cheio de ticker morto o preço seria pago sem motivo.
+
+O ritmo é montado **por fonte**, não em volta da cadeia de fallback: um corte
+temporário do Yahoo não pode gastar a brapi antes de ter insistido.
+
 ### Análise (Fase 2)
 
 **A análise roda só sobre semanas fechadas.** O candle em formação tem volume
@@ -487,6 +515,7 @@ src/
   data/provider.py  R2 — DataProvider + YFinanceProvider + agregação semanal
   data/brapi.py     P2 — fonte alternativa da B3 (brapi.dev)
   data/factory.py   P2 — roteamento por mercado + cadeia de fallback
+  data/throttle.py  R2 — ritmo, reteste e pausa longa quando a fonte corta
   data/cache.py     R2 — SQLite: candles diários e semanais, proventos, log
   metrics.py        R3 — funções puras
   ranges.py         R4 — detecção de lateralização
