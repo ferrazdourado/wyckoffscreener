@@ -109,7 +109,17 @@ def fetch_all(
     cache: Cache,
     force: bool = False,
     now: dt.datetime | None = None,
+    fetch_actions: bool = True,
 ) -> FetchReport:
+    """Coleta os candles de cada papel. Falha de um não aborta o lote (R2).
+
+    `fetch_actions` existe porque proventos são a requisição CARA: medido em
+    14/09/2026, 1,21s por papel contra 0,98s das 120 semanas de preço — mais da
+    metade do tempo de uma varredura. Numa triagem de universo amplo isso não
+    se paga: os preços já vêm ajustados (`auto_adjust=True`), então o que se
+    perde é só a marca de data-ex na semana, e ela importa na hora de ler o
+    gráfico — quando o papel já está na watchlist, que continua coletando tudo.
+    """
     now = now or dt.datetime.now()
     weeks = int(config.require("data.history_weeks"))
     refetch_same_day = bool(config.get("data.refetch_same_day", False))
@@ -135,13 +145,14 @@ def fetch_all(
             bars = mark_partial(bars, hours, now)
             n = cache.upsert_bars(symbol, bars, now)
             cache.upsert_daily(symbol, daily.loc[daily.index >= bars.index[0]], now)
-            try:
-                cache.upsert_actions(symbol, provider.corporate_actions(symbol), now)
-            except FetchError as exc:
-                # Proventos são complemento; a ausência não invalida os candles.
-                report.statuses.append(SymbolStatus(symbol, "ok", n, f"candles ok; proventos falharam — {exc}"))
-                cache.record_fetch(symbol, "ok", n, now=now)
-                continue
+            if fetch_actions:
+                try:
+                    cache.upsert_actions(symbol, provider.corporate_actions(symbol), now)
+                except FetchError as exc:
+                    # Proventos são complemento; a ausência não invalida os candles.
+                    report.statuses.append(SymbolStatus(symbol, "ok", n, f"candles ok; proventos falharam — {exc}"))
+                    cache.record_fetch(symbol, "ok", n, now=now)
+                    continue
             cache.record_fetch(symbol, "ok", n, now=now)
             report.statuses.append(SymbolStatus(symbol, "ok", n))
         except FetchError as exc:

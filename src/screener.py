@@ -266,8 +266,14 @@ def refresh(
     force: bool = False,
     now: dt.datetime | None = None,
 ):
-    """Coleta os candles do universo. Falha de um papel não aborta os outros (R2)."""
-    return fetch_all(universe.as_watchlist(), config, provider, cache, force=force, now=now)
+    """Coleta os candles do universo. Falha de um papel não aborta os outros (R2).
+
+    Proventos ficam de fora por default (`screener.fetch_actions`): é a
+    requisição mais cara da coleta e o universo é triagem, não leitura. Quem
+    passa da triagem entra na watchlist, onde tudo é coletado.
+    """
+    return fetch_all(universe.as_watchlist(), config, provider, cache, force=force, now=now,
+                     fetch_actions=bool(config.get("screener.fetch_actions", False)))
 
 
 def to_frame(result: ScreenResult, config: Config) -> pd.DataFrame:

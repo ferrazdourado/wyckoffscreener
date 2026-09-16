@@ -236,6 +236,13 @@ screener:
   # candle semanal formado por três negócios é ruído com nome de sinal.
   # 0 desliga o filtro.
   min_weekly_volume: 2000000
+  # Buscar proventos dos papéis do universo? Default não: medido em 14/09/2026,
+  # a chamada de proventos custa 1,21s por papel contra 0,98s das 120 semanas de
+  # preço — mais da metade do tempo de uma varredura, para uma lista que é
+  # triagem. Os preços não pioram (já vêm ajustados); o que falta é a marca de
+  # data-ex na semana, e essa importa ao ler o gráfico, quando o papel já está
+  # na watchlist — onde os proventos continuam sendo coletados.
+  fetch_actions: false
   # Universos varridos por `wyckoff report --screen`.
   report_universes: [b3_completa, us_large]
 

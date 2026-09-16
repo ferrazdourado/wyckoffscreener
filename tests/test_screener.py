@@ -8,6 +8,7 @@ from src.screener import (
     check_universe,
     load_universes,
     parse_universes,
+    refresh,
     screen,
     to_frame,
 )
@@ -238,3 +239,25 @@ def test_papel_da_watchlist_nao_volta_como_candidato(config, universo, cache_pov
     filtrado = screen(universo, config, cache_povoado, exclude={alvo})
     assert alvo not in [c.symbol for c in filtrado.candidates]
     assert filtrado.scanned == todos.scanned - 1
+
+
+# --------------------------- custo da coleta ---------------------------
+
+def test_varredura_de_universo_nao_busca_proventos(config, tmp_cache):
+    """A requisição de proventos custa mais que as 120 semanas de preço, e o
+    universo é triagem: quem passa dela entra na watchlist, que coleta tudo."""
+    from tests.test_pipeline import FakeProvider
+    universo = parse_universes(bloco())["teste"]
+    provider = FakeProvider()
+    refresh(universo, config, provider, tmp_cache)
+    assert provider.chamadas, "os candles têm que ser coletados"
+    assert provider.acoes == []
+
+
+def test_screener_fetch_actions_ligado_volta_a_buscar(config, tmp_cache):
+    from tests.test_pipeline import FakeProvider
+    config.data["screener"]["fetch_actions"] = True
+    universo = parse_universes(bloco())["teste"]
+    provider = FakeProvider()
+    refresh(universo, config, provider, tmp_cache)
+    assert provider.acoes == provider.chamadas

@@ -145,6 +145,28 @@ resolveria: num universo cortado, cada um dos 200 papéis insistiria três vezes
 O ritmo é montado **por fonte**, não em volta da cadeia de fallback: um corte
 temporário do Yahoo não pode gastar a brapi antes de ter insistido.
 
+**A requisição cara é a de proventos, não a das 120 semanas.** Cronometrado em
+16/09/2026, por papel: 0,98s para baixar 582 pregões de preço e **1,21s** para
+perguntar por dividendos e splits — mais da metade do tempo de uma varredura.
+
+Isso derruba a otimização que parece óbvia, a de baixar só a semana nova em vez
+das 120: medida, ela economiza 0,25s por papel (0,98 → 0,73), porque o custo é
+o ida-e-volta HTTP e não o tamanho da resposta. E cobraria caro em correção —
+com `auto_adjust=True` um split reescreve a série inteira, então baixar só a
+ponta deixaria as barras velhas numa base de ajuste e as novas em outra, que é
+o defeito de "bases de ajuste misturadas" entrando pela porta dos fundos.
+
+O que rende é `screener.fetch_actions: false` (default): **a varredura de
+universo não pergunta por proventos**. Os preços não pioram, porque o ajuste já
+vem embutido no dado; o que falta é a marca de data-ex na semana, e ela importa
+ao ler o gráfico — quando o papel já passou da triagem e está na watchlist, que
+continua coletando tudo. Medido antes e depois na mesma varredura de 32 papéis:
+**70,8s → 18,2s**. Em 78 papéis da B3, 42,8s, ou 0,55s por papel.
+
+A 0,55s o gargalo passa a ser o próprio `min_interval` — o que antes era grátis
+agora é quase todo o tempo. Varrer B3 e EUA completos (889 papéis) projeta-se
+em **~9 min**, contra os 30 de `timeout-minutes` do workflow.
+
 ### Análise (Fase 2)
 
 **A análise roda só sobre semanas fechadas.** O candle em formação tem volume

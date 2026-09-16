@@ -20,6 +20,7 @@ class FakeProvider(DataProvider):
         self.falham = set(falham)
         self.weeks = weeks
         self.chamadas: list[str] = []
+        self.acoes: list[str] = []
 
     def daily_bars(self, symbol, weeks):
         """A fonte real entrega diário; aqui basta uma barra por semana —
@@ -36,6 +37,7 @@ class FakeProvider(DataProvider):
         return self.daily_bars(symbol, weeks)
 
     def corporate_actions(self, symbol):
+        self.acoes.append(symbol)
         return pd.DataFrame(columns=["date", "kind", "value"])
 
 
@@ -227,3 +229,22 @@ def test_trading_days_chega_ate_as_metricas(config, tmp_cache):
     fetch_all(wl, config, FakeProvider(), tmp_cache, now=AGORA)
     metrics, _ = build_metrics(wl, config, tmp_cache)
     assert "trading_days" in metrics["PETR4.SA"].columns
+
+
+def test_proventos_sao_coletados_por_default(config, tmp_cache):
+    provider = FakeProvider()
+    fetch_all(wl_simples(), config, provider, tmp_cache, now=AGORA)
+    assert provider.acoes == provider.chamadas
+
+
+def test_fetch_actions_falso_poupa_a_requisicao_mais_cara(config, tmp_cache):
+    """Proventos custam mais que as 120 semanas de preço (1,21s contra 0,98s).
+    Numa varredura de universo isso é metade do tempo por uma anotação que a
+    triagem não usa."""
+    provider = FakeProvider()
+    report = fetch_all(wl_simples(), config, provider, tmp_cache, now=AGORA,
+                       fetch_actions=False)
+    assert provider.acoes == []
+    # E os candles continuam inteiros: o que se pula é a segunda requisição.
+    assert provider.chamadas and all(s.status == "ok" for s in report.statuses)
+    assert not tmp_cache.get_bars("PETR4.SA").empty
