@@ -164,6 +164,15 @@ class ScreenResult:
     phases: tuple[str, ...] = ()
     illiquid: int = 0            # descartados pelo piso de liquidez
     min_liquidity: float = 0.0
+    #: Quantos papéis passaram no filtro de fase E no piso de liquidez, ANTES
+    #: do corte do `top`. Sem ele o relatório dizia "25 em Fase C/D" numa semana
+    #: com 142: a frase lia como censo e era teto, e some justamente o que diria
+    #: se 25 está apertado ou folgado.
+    matched: int = 0
+
+    @property
+    def truncated(self) -> bool:
+        return self.matched > len(self.candidates)
 
 
 def weekly_liquidity(metrics: pd.DataFrame, weeks: int = 12) -> float:
@@ -253,6 +262,7 @@ def screen(
         resultado.candidates.append(Candidate(analysis, idade, ultimo, liquidez))
 
     resultado.candidates.sort(key=lambda c: c.sort_key(rs_weeks))
+    resultado.matched = len(resultado.candidates)
     if limit:
         resultado.candidates = resultado.candidates[:limit]
     return resultado

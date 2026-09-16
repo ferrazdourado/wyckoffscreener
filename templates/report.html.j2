@@ -174,7 +174,7 @@ invalid. = nível de invalidação (folga até ele)</p>
 <h2>4. Candidatos fora da watchlist</h2>
 {% for bloco in candidates %}
 <p class="sub"><b>{{ bloco.universe }}</b> — {{ bloco.scanned }} papéis varridos,
-  {{ bloco.candidates|length }} em Fase {{ bloco.phases|join('/') }}{% if bloco.illiquid %},
+  {{ bloco.candidates|length }}{% if bloco.matched > bloco.candidates|length %} de {{ bloco.matched }}{% endif %} em Fase {{ bloco.phases|join('/') }}{% if bloco.illiquid %},
   {{ bloco.illiquid }} descartado(s) por liquidez abaixo de
   {{ bloco.min_liquidity|fmt('{:,.0f}') }} por semana{% endif %}.</p>
 {% if bloco.candidates %}

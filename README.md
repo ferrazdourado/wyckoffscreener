@@ -30,6 +30,7 @@ pip install -e ".[pdf]"         # motor de PDF para máquina sem Chrome/Chromium
 ```bash
 wyckoff report              # ROTINA DE SEXTA: coleta, analisa e gera .md + .html
 wyckoff report --screen     # o mesmo, e garimpa candidatos fora da watchlist
+wyckoff report --screen --offline   # relê tudo do cache, sem coletar (25 s)
 wyckoff report --notify     # o mesmo, e manda o resumo pelo canal configurado
 
 wyckoff screen b3_completa  # varre as 371 ações da B3 e ranqueia quem está em Fase C/D
@@ -54,31 +55,45 @@ wyckoff dashboard           # dashboard local sobre o mesmo SQLite     (P2)
 wyckoff sources PETR4.SA    # põe duas fontes lado a lado no mesmo papel (P2)
 ```
 
-Quase todo comando aceita `--offline` (usa só o cache, sem rede).
+Quase todo comando aceita `--offline` (usa só o cache, sem rede). É o que se
+usa para **reler o relatório sem varrer tudo de novo**: `wyckoff report --screen
+--offline` refaz o documento inteiro, com as duas seções de candidatos, em 25 s
+e sem tocar na rede. Sem `--offline` a coleta também é pulada se já houve fetch
+bem-sucedido no mesmo dia (`data.refetch_same_day: false`), mas aí depende do
+dia; `--offline` vale sempre.
 
 Saídas: `reports/AAAA-SS.md`, `reports/AAAA-SS.html` (autocontido, com os
 gráficos embutidos), `reports/AAAA-SS.pdf` (com `--pdf`) e
 `reports/AAAA-SS/charts/*.png`; `exports/metrics_AAAA-SS.csv` e
 `exports/latest_AAAA-SS.csv`.
 
-Referência de 07-08/09/2026, offline: relatório **3,0 s** para 12 papéis ·
-screener **24 s** para 78 · backtest causal **10 s** para 12 × 120 semanas ·
-PDF **2,9 s** (17 páginas, 1,4 MB).
+Referência offline (16/09/2026): relatório **2,5 s** para 12 papéis ·
+`report --screen` **25 s** com os dois universos completos (872 papéis lidos do
+cache) · screener **2,0 s** para 78 · backtest causal **10 s** para 12 × 120
+semanas · PDF **2,9 s**.
+
+Com coleta (16/09/2026, `--force`, rede): **0,55 s por papel**, e a rotina de
+sexta inteira — watchlist, os dois universos completos, gráficos, HTML e PDF —
+em **9,0 min**.
 
 ## Rodar na nuvem (GitHub Actions)
 
 `.github/workflows/semanal.yml` executa a rotina de sexta sem a máquina ligada.
-É um job em lote de poucos minutos por semana, não um serviço: o cron do Actions
-cobre isso de graça (repo público: ilimitado; privado: ~20 min/mês dos 2.000 do
-tier gratuito). Por isso não há servidor a manter.
+É um job em lote de ~9 min por semana, não um serviço: o cron do Actions cobre
+isso de graça (repo público: ilimitado; privado: ~40 min/mês dos 2.000 do tier
+gratuito). Por isso não há servidor a manter.
 
 - **Quando:** sexta, 22:30 UTC (19:30 BRT). Mais tarde que as 18h da spec de
   propósito — a NYSE fecha 21:00 UTC no inverno americano, e 18h BRT pegaria o
   candle semanal dos papéis US ainda aberto.
 - **O cache sobrevive entre as semanas** via `actions/cache`, com chave
   `wyckoff-sqlite-<ano-semana>` (a chave precisa mudar toda semana, senão o
-  cache nunca é regravado) e `restore-keys` pegando o da semana anterior. Se o
-  cache expirar, o `fetch` rebaixa as 120 semanas: lento, não quebrado.
+  cache nunca é regravado) e `restore-keys` pegando o da semana anterior.
+  **Ele não torna a coleta incremental:** toda sexta as 120 semanas de cada
+  papel são rebaixadas inteiras (`pipeline.py`, `data.history_weeks`), porque
+  com `auto_adjust=True` um provento reescreve a série toda e baixar só a ponta
+  misturaria bases de ajuste. O cache serve para o relatório ainda ter história
+  quando a coleta falha, e para reler no mesmo dia sem ir à rede.
 - **O relatório sai como artifact**, não como commit — `reports/` está no
   `.gitignore`. As 60 primeiras linhas do `.md` vão para o resumo do run, então
   as invalidações se leem sem baixar nada. E o PDF chega no Telegram.
@@ -164,8 +179,8 @@ continua coletando tudo. Medido antes e depois na mesma varredura de 32 papéis:
 **70,8s → 18,2s**. Em 78 papéis da B3, 42,8s, ou 0,55s por papel.
 
 A 0,55s o gargalo passa a ser o próprio `min_interval` — o que antes era grátis
-agora é quase todo o tempo. Varrer B3 e EUA completos (889 papéis) projeta-se
-em **~9 min**, contra os 30 de `timeout-minutes` do workflow.
+agora é quase todo o tempo. Varrer B3 e EUA completos custa **9,0 min** medidos
+(ver "Garimpo de candidatos"), contra os 30 de `timeout-minutes` do workflow.
 
 ### Análise (Fase 2)
 
@@ -336,12 +351,20 @@ GitHub sai de um IP compartilhado da Azure, que o Yahoo vê muito mais
 movimentado. Não há promessa de que nunca vai cortar lá — há reteste, cooldown,
 e um relatório que registra o buraco em vez de escondê-lo.
 
-Três decisões dentro dela:
+Quatro decisões dentro dela:
 
 **Papel da watchlist nunca volta como candidato.** Uma seção chamada "fora da
 watchlist" que devolvesse VALE3 e ITUB4 gastaria as primeiras linhas — as que
 você lê — repetindo o que já está na seção 3. Foi o primeiro defeito que
 apareceu ao testar.
+
+**A lista é cortada, e o relatório diz de quanto.** `screener.top` (25 por
+universo) limita o que entra no documento. A primeira versão imprimia
+`candidates|length`, ou seja o número já cortado — em 16/09/2026 o relatório
+dizia "25 em Fase C/D" numa semana com **142** candidatos americanos. A frase
+lia como censo e era teto, e escondia justamente o que diz se 25 aperta ou
+folga. Agora sai "25 de 142", e o terminal anuncia o total antes de avisar que
+está mostrando os primeiros.
 
 **Piso de liquidez.** O universo amplo tem papel que negocia quase nada, e a
 leitura Wyckoff de um candle semanal formado por três negócios é ruído com nome
@@ -572,7 +595,7 @@ src/
 .github/workflows/  semanal.yml — a rotina de sexta rodando no GitHub Actions
 templates/          report.md.j2 + report.html.j2
 universe.yaml       universos do screener: 371 ações da B3, 78 líquidas, 518 US, 31 US líquidas
-tests/              471 testes, sem rede
+tests/              493 testes, sem rede
 ```
 
 ## Estado das fases
@@ -622,11 +645,18 @@ tests/              471 testes, sem rede
 - ~~Nenhuma notificação foi enviada de verdade~~ — resumo recebido no Telegram
   em 13/09/2026 e PDF anexado em 14/09/2026, os dois a partir do Actions. O
   `sendDocument` e o multipart escrito à mão passaram pela API real.
-- ~~O workflow do Actions nunca rodou~~ — rodou, e resolveu as duas incógnitas:
-  o **Yahoo não estrangulou** o IP do runner (12 papéis + índices + universo do
-  screener numa tacada), e o **Chrome headless roda sem `--no-sandbox`** no
-  `ubuntu-latest`. O runner só não tem as fontes da sua máquina: o matplotlib
-  cai na DejaVu, o que muda o desenho dos rótulos e nada mais.
+- ~~O workflow do Actions nunca rodou~~ — rodou, e resolveu uma incógnita de
+  vez: o **Chrome headless roda sem `--no-sandbox`** no `ubuntu-latest`. O
+  runner só não tem as fontes da sua máquina: o matplotlib cai na DejaVu, o que
+  muda o desenho dos rótulos e nada mais.
+- **O runner nunca foi testado no volume de hoje.** Os runs de 13-14/09/2026
+  varreram `us_large`, 31 nomes; a sexta agora pede 891 papéis. A versão antiga
+  desta linha dizia que "o Yahoo não estrangulou o IP do runner" — verdade para
+  o volume daquele dia, e cedo demais como conclusão: em 14/09, daqui, o corte
+  veio na requisição ~636. O IP do Actions é compartilhado da Azure, que o Yahoo
+  vê muito mais movimentado que um IP residencial. O que existe hoje é reteste,
+  cooldown e um relatório que registra o buraco; o primeiro run grande na nuvem
+  é que diz se basta.
 - **O cron automático ainda não disparou.** Todos os runs até aqui foram
   `workflow_dispatch` manual. O primeiro agendado é sexta, 18/09/2026, 22:30 UTC.
 - **O caminho incremental do cache não foi exercitado.** O primeiro run criou o

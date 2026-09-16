@@ -261,3 +261,24 @@ def test_screener_fetch_actions_ligado_volta_a_buscar(config, tmp_cache):
     provider = FakeProvider()
     refresh(universo, config, provider, tmp_cache)
     assert provider.acoes == provider.chamadas
+
+
+def test_lista_cortada_guarda_quantos_passaram_no_filtro(config, tmp_cache):
+    """"25 em Fase C/D" numa semana com 142 lê como censo e é teto — e some
+    justamente o número que diz se o corte está apertado."""
+    universo = parse_universes(bloco(tickers=("A3.SA", "B3.SA", "C3.SA")))["teste"]
+    for symbol in ("A3.SA", "B3.SA", "C3.SA", "^BVSP"):
+        tmp_cache.upsert_bars(symbol, ranged_bars(60))
+    resultado = screen(universo, config, tmp_cache, phases=("B",), limit=2)
+    assert len(resultado.candidates) == 2
+    assert resultado.matched == 3
+    assert resultado.truncated
+
+
+def test_lista_inteira_nao_se_diz_cortada(config, tmp_cache):
+    universo = parse_universes(bloco(tickers=("A3.SA", "B3.SA")))["teste"]
+    for symbol in ("A3.SA", "B3.SA", "^BVSP"):
+        tmp_cache.upsert_bars(symbol, ranged_bars(60))
+    resultado = screen(universo, config, tmp_cache, phases=("B",), limit=25)
+    assert resultado.matched == len(resultado.candidates)
+    assert not resultado.truncated

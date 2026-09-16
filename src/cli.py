@@ -573,8 +573,13 @@ def cmd_screen(args) -> int:
               file=sys.stderr)
         return 1
 
-    print(f"\n{len(resultado.candidates)} candidato(s) em Fase {'/'.join(fases)} "
+    # O número grande é quantos PASSARAM, não quantos couberam: "25 em Fase C/D"
+    # numa semana com 142 lê como censo e é teto, e esconde se o corte aperta.
+    print(f"\n{resultado.matched} candidato(s) em Fase {'/'.join(fases)} "
           f"de {resultado.scanned} papéis analisados ({nome}):\n")
+    if resultado.truncated:
+        print(f"  (mostrando os {len(resultado.candidates)} primeiros — "
+              f"`screener.top`)\n")
     if resultado.illiquid:
         # Nunca silencioso: um filtro que descarta sem avisar vira suspeita de bug.
         print(f"  ({resultado.illiquid} papel(éis) descartado(s) por negociarem menos de "

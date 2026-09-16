@@ -237,6 +237,7 @@ def _candidate_blocks(screen_results, config: Config) -> list[dict]:
             "universe": resultado.universe.name,
             "market": resultado.universe.market,
             "scanned": resultado.scanned,
+            "matched": resultado.matched,
             "illiquid": resultado.illiquid,
             "min_liquidity": resultado.min_liquidity,
             "phases": list(resultado.phases),
