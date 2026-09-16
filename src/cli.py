@@ -584,6 +584,10 @@ def cmd_screen(args) -> int:
         # Nunca silencioso: um filtro que descarta sem avisar vira suspeita de bug.
         print(f"  ({resultado.illiquid} papel(éis) descartado(s) por negociarem menos de "
               f"{resultado.min_liquidity:,.0f} por semana — `screener.min_weekly_volume`)\n")
+    if resultado.stale:
+        print(f"  ({resultado.stale} papel(éis) descartado(s) por evento de mais de "
+              f"{resultado.max_weeks_since_event} semanas — "
+              f"`screener.max_weeks_since_event`)\n")
     frame = to_frame(resultado, config)
     if frame.empty:
         print("  (nenhum papel nas fases pedidas nesta semana)")

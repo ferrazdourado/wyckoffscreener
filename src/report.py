@@ -239,6 +239,8 @@ def _candidate_blocks(screen_results, config: Config) -> list[dict]:
             "scanned": resultado.scanned,
             "matched": resultado.matched,
             "illiquid": resultado.illiquid,
+            "stale": resultado.stale,
+            "max_weeks_since_event": resultado.max_weeks_since_event,
             "min_liquidity": resultado.min_liquidity,
             "phases": list(resultado.phases),
             "candidates": itens,

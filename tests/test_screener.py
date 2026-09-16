@@ -282,3 +282,57 @@ def test_lista_inteira_nao_se_diz_cortada(config, tmp_cache):
     resultado = screen(universo, config, tmp_cache, phases=("B",), limit=25)
     assert resultado.matched == len(resultado.candidates)
     assert not resultado.truncated
+
+
+# --------------------------- recência do evento ---------------------------
+
+def test_evento_velho_nao_entra_na_triagem(config, tmp_cache):
+    """Fase não expira — um SOS de 82 semanas atrás mantém o papel em Fase D.
+    Certo para ler o gráfico, errado para triar a semana."""
+    from unittest.mock import patch
+    universo = parse_universes(bloco(tickers=("A3.SA",)))["teste"]
+    for symbol in ("A3.SA", "^BVSP"):
+        tmp_cache.upsert_bars(symbol, ranged_bars(60))
+    config.data["screener"]["max_weeks_since_event"] = 6
+    with patch("src.screener._weeks_since_event", return_value=(40, object())):
+        resultado = screen(universo, config, tmp_cache, phases=("B",))
+    assert resultado.candidates == []
+    assert resultado.stale == 1
+    assert resultado.max_weeks_since_event == 6
+
+
+def test_evento_recente_passa(config, tmp_cache):
+    from unittest.mock import patch
+    universo = parse_universes(bloco(tickers=("A3.SA",)))["teste"]
+    for symbol in ("A3.SA", "^BVSP"):
+        tmp_cache.upsert_bars(symbol, ranged_bars(60))
+    config.data["screener"]["max_weeks_since_event"] = 6
+    with patch("src.screener._weeks_since_event", return_value=(2, object())):
+        resultado = screen(universo, config, tmp_cache, phases=("B",))
+    assert len(resultado.candidates) == 1
+    assert resultado.stale == 0
+
+
+def test_fase_sem_evento_para_datar_nao_e_descartada(config, tmp_cache):
+    """Fase B é a causa sendo construída e não tem evento. Um filtro de recência
+    que a esvaziasse estaria fazendo o que ninguém pediu."""
+    universo = parse_universes(bloco(tickers=("A3.SA",)))["teste"]
+    for symbol in ("A3.SA", "^BVSP"):
+        tmp_cache.upsert_bars(symbol, ranged_bars(60))
+    config.data["screener"]["max_weeks_since_event"] = 1
+    resultado = screen(universo, config, tmp_cache, phases=("B",))
+    assert len(resultado.candidates) == 1
+    assert resultado.candidates[0].weeks_since_event is None
+    assert resultado.stale == 0
+
+
+def test_teto_zero_desliga_o_filtro(config, tmp_cache):
+    from unittest.mock import patch
+    universo = parse_universes(bloco(tickers=("A3.SA",)))["teste"]
+    for symbol in ("A3.SA", "^BVSP"):
+        tmp_cache.upsert_bars(symbol, ranged_bars(60))
+    config.data["screener"]["max_weeks_since_event"] = 0
+    with patch("src.screener._weeks_since_event", return_value=(200, object())):
+        resultado = screen(universo, config, tmp_cache, phases=("B",))
+    assert len(resultado.candidates) == 1
+    assert resultado.stale == 0

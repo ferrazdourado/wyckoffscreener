@@ -141,6 +141,9 @@ DEFAULTS: dict[str, Any] = {
         # Piso de liquidez do candidato: mediana do volume financeiro semanal
         # das últimas 12 semanas. Existe por causa dos universos amplos.
         "min_weekly_volume": 2_000_000,
+        # Idade máxima do evento que instalou a fase: fase não expira, mas
+        # triagem de swing semanal não se faz com evento de meio ano atrás.
+        "max_weeks_since_event": 6,
         # Proventos do universo: a requisição mais cara da coleta, e a triagem
         # não precisa dela. Ver `refresh` em screener.py.
         "fetch_actions": False,

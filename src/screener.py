@@ -164,6 +164,8 @@ class ScreenResult:
     phases: tuple[str, ...] = ()
     illiquid: int = 0            # descartados pelo piso de liquidez
     min_liquidity: float = 0.0
+    stale: int = 0               # descartados por evento velho demais
+    max_weeks_since_event: int = 0
     #: Quantos papéis passaram no filtro de fase E no piso de liquidez, ANTES
     #: do corte do `top`. Sem ele o relatório dizia "25 em Fase C/D" numa semana
     #: com 142: a frase lia como censo e era teto, e some justamente o que diria
@@ -226,9 +228,11 @@ def screen(
     rs_windows = [int(w) for w in config.require("metrics.relative_strength_weeks")]
     rs_weeks = rs_windows[-1] if rs_windows else 12
     piso = float(config.get("screener.min_weekly_volume", 0) or 0)
+    teto_idade = int(config.get("screener.max_weeks_since_event", 0) or 0)
 
     bench_bars = cache.get_bars(universe.benchmark)
-    resultado = ScreenResult(universe=universe, phases=tuple(phases), min_liquidity=piso)
+    resultado = ScreenResult(universe=universe, phases=tuple(phases), min_liquidity=piso,
+                             max_weeks_since_event=teto_idade)
 
     for item in universe.as_watchlist():
         if item.symbol in exclude:
@@ -259,6 +263,18 @@ def screen(
             resultado.illiquid += 1
             continue
         idade, ultimo = _weeks_since_event(analysis)
+        # Fase é estado e não tem prazo: um SOS de 82 semanas atrás mantém o
+        # papel em Fase D para sempre. Para LER o gráfico isso é correto; para
+        # TRIAR a semana, não — o que se procura é o que mudou há pouco.
+        #
+        # Papel sem evento alinhado ao viés passa direto, em vez de ser
+        # descartado: é o caso da Fase B, que é a causa sendo construída e não
+        # tem evento para datar. Descartá-la faria este filtro esvaziar em
+        # silêncio uma fase que só entra na lista quando alguém a pede em
+        # `screener.phases` — filtro que faz o que não foi pedido é defeito.
+        if teto_idade and idade is not None and idade > teto_idade:
+            resultado.stale += 1
+            continue
         resultado.candidates.append(Candidate(analysis, idade, ultimo, liquidez))
 
     resultado.candidates.sort(key=lambda c: c.sort_key(rs_weeks))

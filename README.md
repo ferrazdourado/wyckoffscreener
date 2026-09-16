@@ -351,12 +351,29 @@ GitHub sai de um IP compartilhado da Azure, que o Yahoo vê muito mais
 movimentado. Não há promessa de que nunca vai cortar lá — há reteste, cooldown,
 e um relatório que registra o buraco em vez de escondê-lo.
 
-Quatro decisões dentro dela:
+Cinco decisões dentro dela:
 
 **Papel da watchlist nunca volta como candidato.** Uma seção chamada "fora da
 watchlist" que devolvesse VALE3 e ITUB4 gastaria as primeiras linhas — as que
 você lê — repetindo o que já está na seção 3. Foi o primeiro defeito que
 apareceu ao testar.
+
+**Fase não expira, e triagem precisa que expire.** A máquina de estados de R6
+mantém o papel em Fase D enquanto o nível do evento aguentar — correto para ler
+o gráfico, e errado para montar a lista da semana. Em 16/09/2026, dos 144
+candidatos americanos, **53 tinham evento de mais de 12 semanas e 15 de mais de
+26**, um deles um SOS de **82 semanas atrás**. Uma lista de swing semanal
+cheia de estado de um ano e meio atrás não é triagem, é inventário.
+
+`screener.max_weeks_since_event` (6) descarta o que não mudou há pouco: 144 → 66
+nos EUA. O calibre de spring, que era o candidato óbvio, quase não mordia — com
+3 toques dava 131 e com 4, 110 —, porque o problema nunca foi o gatilho estar
+frouxo, e sim a leitura não ter prazo.
+
+Papel **sem** evento alinhado ao viés passa direto em vez de ser descartado: é o
+caso da Fase B, a causa sendo construída, que não tem evento para datar.
+Descartá-la faria o filtro esvaziar em silêncio uma fase que só aparece quando
+alguém a pede em `screener.phases`.
 
 **A lista é cortada, e o relatório diz de quanto.** `screener.top` (25 por
 universo) limita o que entra no documento. A primeira versão imprimia
@@ -409,7 +426,7 @@ configuráveis, todos com o default reproduzindo o comportamento pedido.
 
 | O quê | Por quê |
 |---|---|
-| `events.spring.min_support_touches` (default **1** = regra literal da spec) | A spec define spring como "mínima perfura suporte do range". Com o suporte lido como mínima corrente, *toda nova mínima* do range vira spring. Subir para 2 exige um suporte já testado; nos dados de 07/09/2026 isso descarta 7 dos 42 springs. O default fica na spec — o calibre existe para R11. |
+| `events.spring.min_support_touches` (**2** no `config.yaml`; 1 = regra literal da spec, que é o que o `DEFAULTS` do código traz) | A spec define spring como "mínima perfura suporte do range". Com o suporte lido como mínima corrente, *toda nova mínima* do range vira spring. Exigir 2 toques pede um suporte já testado; nos dados de 07/09/2026 isso descarta 7 dos 42 springs. Subiu para 2 em 12/09/2026, depois que o backtest de R11 mostrou o spring literal rendendo menos que uma semana qualquer. |
 | Eventos `sow` e `lpsy` | R5 não os lista, mas R6 exige "equivalentes de distribuição" para a máquina de estados. São espelhos exatos de SOS e LPS. |
 | `events.*.trend_weeks`, `test.max_distance_to_spring_low_atr`, `sos.internal_resistance_weeks` | A spec diz "após tendência de baixa", "recuo pós-spring", "resistência interna" sem números. Cada um virou parâmetro documentado no `config.yaml` em vez de constante no código. |
 
