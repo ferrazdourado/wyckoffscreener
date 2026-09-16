@@ -244,7 +244,7 @@ screener:
   # na watchlist — onde os proventos continuam sendo coletados.
   fetch_actions: false
   # Universos varridos por `wyckoff report --screen`.
-  report_universes: [b3_completa, us_large]
+  report_universes: [b3_completa, us_completa]
 
 # --- R10: contagem de causa (Ponto & Figura) ------------------------------
 # Estimativa grosseira: o insumo é o candle SEMANAL, não intradiário. Serve

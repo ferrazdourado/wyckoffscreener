@@ -320,9 +320,21 @@ comando cuja saída ia para outro arquivo.
 `wyckoff report --screen` fecha isso: acrescenta ao relatório a seção
 **"Candidatos fora da watchlist"**, com fase, evento da semana, força relativa,
 liquidez e a linha `wyckoff add` pronta para promover o papel. Fica em `--screen`
-e não no padrão porque varrer 400 papéis custa minutos de coleta, enquanto o
+e não no padrão porque varrer 900 papéis custa minutos de coleta, enquanto o
 relatório da watchlist sai em segundos — as duas velocidades servem a momentos
 diferentes.
+
+**Os universos varridos são os completos** (`screener.report_universes:
+[b3_completa, us_completa]`). Rodado de ponta a ponta em 16/09/2026, com
+`--pdf` e `--force`: **9,0 min**, 891 papéis, 890 ok e um erro — `ONCO11.SA`,
+que falhou nas três tentativas isolado no meio de sucessos, a assinatura de
+papel morto e não de corte de IP. Nenhum estrangulamento, contra os 30 min de
+`timeout-minutes` do workflow.
+
+A ressalva é o IP: o teste correu de uma máquina residencial, e o runner do
+GitHub sai de um IP compartilhado da Azure, que o Yahoo vê muito mais
+movimentado. Não há promessa de que nunca vai cortar lá — há reteste, cooldown,
+e um relatório que registra o buraco em vez de escondê-lo.
 
 Três decisões dentro dela:
 

@@ -144,7 +144,7 @@ DEFAULTS: dict[str, Any] = {
         # Proventos do universo: a requisição mais cara da coleta, e a triagem
         # não precisa dela. Ver `refresh` em screener.py.
         "fetch_actions": False,
-        "report_universes": ["b3_completa", "us_large"],
+        "report_universes": ["b3_completa", "us_completa"],
     },
 }
 
