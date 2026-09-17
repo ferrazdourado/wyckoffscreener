@@ -177,7 +177,7 @@ invalid. = nível de invalidação (folga até ele)</p>
   {{ bloco.candidates|length }}{% if bloco.matched > bloco.candidates|length %} de {{ bloco.matched }}{% endif %} em Fase {{ bloco.phases|join('/') }}{% if bloco.illiquid %},
   {{ bloco.illiquid }} descartado(s) por liquidez abaixo de
   {{ bloco.min_liquidity|fmt('{:,.0f}') }} por semana{% endif %}{% if bloco.stale %},
-  {{ bloco.stale }} por evento de mais de {{ bloco.max_weeks_since_event }} semanas{% endif %}.</p>
+  {{ bloco.stale }} por fase instalada há mais de {{ bloco.max_weeks_since_event }} semanas{% endif %}.</p>
 {% if bloco.candidates %}
 <div class="scroll">
 <table>

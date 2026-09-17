@@ -365,12 +365,23 @@ candidatos americanos, **53 tinham evento de mais de 12 semanas e 15 de mais de
 26**, um deles um SOS de **82 semanas atrás**. Uma lista de swing semanal
 cheia de estado de um ano e meio atrás não é triagem, é inventário.
 
-`screener.max_weeks_since_event` (6) descarta o que não mudou há pouco: 144 → 66
+`screener.max_weeks_since_event` (6) descarta o que não mudou há pouco: 144 → 59
 nos EUA. O calibre de spring, que era o candidato óbvio, quase não mordia — com
 3 toques dava 131 e com 4, 110 —, porque o problema nunca foi o gatilho estar
 frouxo, e sim a leitura não ter prazo.
 
-Papel **sem** evento alinhado ao viés passa direto em vez de ser descartado: é o
+**O que envelhece é a leitura, não um evento qualquer.** A primeira versão datava
+o papel pelo último evento do mesmo viés, e com isso deixava passar justamente o
+caso que o filtro existe para barrar: em 16/09/2026 o **NSC** abria a lista
+americana com Fase D instalada por um SOS de **60 semanas** atrás, porque um
+spring imprimira na semana anterior. Só que a máquina de estados ignora esse
+spring de propósito — dentro do mesmo viés a fase não retrocede de D para C —,
+então a leitura mostrada continuava sendo a de 60 semanas atrás. Agora a idade é
+a do evento que instalou (ou confirmou por último) a fase; eram 5 papéis nessa
+situação, com fases de 34 a 60 semanas. O último evento alinhado continua no CSV,
+em coluna própria, que é onde se vê por que os dois números divergem.
+
+Papel **sem** evento que date a fase passa direto em vez de ser descartado: é o
 caso da Fase B, a causa sendo construída, que não tem evento para datar.
 Descartá-la faria o filtro esvaziar em silêncio uma fase que só aparece quando
 alguém a pede em `screener.phases`.

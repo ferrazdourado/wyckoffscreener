@@ -194,11 +194,20 @@ class _Machine:
              pending: str | None = None) -> None:
         new_code = _code(letter, bias)
         changed = new_code != self.code
+        letra_mudou = letter != self.letter
         self.letter, self.bias = letter, bias
         self.pending_override = pending
         if driver is not None:
             self.driver = driver
             self.driver_letter = letter
+        elif letra_mudou:
+            # Transição sem evento — nasce um range, um rompimento confirma a
+            # Fase E — não deixa nível de referência. Guardar o driver da letra
+            # anterior faria `PhaseState.driver` apontar para o SOS que instalou
+            # uma Fase D enquanto a leitura corrente já é de Fase B, e quem lê o
+            # driver para datar a fase leria a idade do evento errado.
+            self.driver = None
+            self.driver_letter = None
         if changed:
             self.since = i
             self.transitions.append(

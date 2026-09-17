@@ -161,7 +161,7 @@ def test_evento_recente_segue_o_vies_da_fase(config, tmp_cache):
 def test_tabela_traz_as_colunas_que_justificam_a_ordem(config, universo, cache_povoado):
     frame = to_frame(screen(universo, config, cache_povoado), config)
     for coluna in ("posicao", "symbol", "fase", "semanas_desde_evento",
-                   "evento_recente", "rs_12w", "volume_ratio", "proximo_esperado"):
+                   "evento_da_fase", "rs_12w", "volume_ratio", "proximo_esperado"):
         assert coluna in frame.columns
     assert list(frame["posicao"]) == [1, 2]
 
@@ -294,7 +294,7 @@ def test_evento_velho_nao_entra_na_triagem(config, tmp_cache):
     for symbol in ("A3.SA", "^BVSP"):
         tmp_cache.upsert_bars(symbol, ranged_bars(60))
     config.data["screener"]["max_weeks_since_event"] = 6
-    with patch("src.screener._weeks_since_event", return_value=(40, object())):
+    with patch("src.screener._phase_driver_age", return_value=(40, object())):
         resultado = screen(universo, config, tmp_cache, phases=("B",))
     assert resultado.candidates == []
     assert resultado.stale == 1
@@ -307,7 +307,7 @@ def test_evento_recente_passa(config, tmp_cache):
     for symbol in ("A3.SA", "^BVSP"):
         tmp_cache.upsert_bars(symbol, ranged_bars(60))
     config.data["screener"]["max_weeks_since_event"] = 6
-    with patch("src.screener._weeks_since_event", return_value=(2, object())):
+    with patch("src.screener._phase_driver_age", return_value=(2, object())):
         resultado = screen(universo, config, tmp_cache, phases=("B",))
     assert len(resultado.candidates) == 1
     assert resultado.stale == 0
@@ -332,7 +332,63 @@ def test_teto_zero_desliga_o_filtro(config, tmp_cache):
     for symbol in ("A3.SA", "^BVSP"):
         tmp_cache.upsert_bars(symbol, ranged_bars(60))
     config.data["screener"]["max_weeks_since_event"] = 0
-    with patch("src.screener._weeks_since_event", return_value=(200, object())):
+    with patch("src.screener._phase_driver_age", return_value=(200, object())):
         resultado = screen(universo, config, tmp_cache, phases=("B",))
     assert len(resultado.candidates) == 1
     assert resultado.stale == 0
+
+
+def bars_fase_velha_com_evento_novo():
+    """Fase D instalada por um SOS antigo, e um spring recente que a máquina
+    de estados ignora de propósito (dentro do mesmo viés a fase não retrocede
+    de D para C). É a forma do NSC em 16/09/2026: leitura de 60 semanas atrás
+    abrindo a lista americana porque um spring imprimira na semana anterior.
+    """
+    import pandas as pd
+
+    bars = pd.concat([ranged_bars(20),
+                      ranged_bars(40, low=12.5, high=14.5, close=13.5, start="2026-05-25")])
+    bars.index = pd.date_range("2026-01-05", periods=60, freq="7D", name="week_start")
+    bars = set_bar(bars, 20, open=12.7, high=15.6, low=12.6, close=15.0, volume=200.0)
+    return set_bar(bars, 57, low=12.2, close=13.5, volume=80.0)
+
+
+def test_idade_da_fase_e_a_do_evento_que_a_instalou(config, tmp_cache):
+    """O spring recente não rejuvenesce uma Fase D de 39 semanas atrás."""
+    from src.analysis import analyze
+    from src.metrics import compute_metrics
+    from src.screener import _last_aligned_event, _phase_driver_age
+    from src.watchlist import WatchItem
+
+    bars = bars_fase_velha_com_evento_novo()
+    analise = analyze(WatchItem("A3.SA", "b3", "^BVSP"), compute_metrics(bars, config), config)
+    assert analise.phase.code == "D_acumulacao"
+    assert analise.phase.driver.kind == "sos"
+    idade_fase, driver = _phase_driver_age(analise)
+    idade_alinhado, alinhado = _last_aligned_event(analise)
+    assert driver.kind == "sos" and idade_fase == 39
+    assert alinhado.kind == "spring" and idade_alinhado == 2   # o que enganava o filtro
+
+
+def test_fase_velha_nao_entra_na_triagem_por_evento_novo(config, tmp_cache):
+    """Regressão do NSC: o filtro de recência data a LEITURA, não o último
+    evento do mesmo viés que passou por perto."""
+    universo = parse_universes(bloco(tickers=("A3.SA",)))["teste"]
+    popular(tmp_cache, "^BVSP", ranged_bars(60))
+    popular(tmp_cache, "A3.SA", bars_fase_velha_com_evento_novo())
+    config.data["screener"]["max_weeks_since_event"] = 6
+    resultado = screen(universo, config, tmp_cache, phases=("C", "D"))
+    assert resultado.candidates == []
+    assert resultado.stale == 1
+
+
+def test_csv_traz_as_duas_idades(config, tmp_cache):
+    """Quando as duas divergem, é no CSV que se vê por quê."""
+    universo = parse_universes(bloco(tickers=("A3.SA",)))["teste"]
+    popular(tmp_cache, "^BVSP", ranged_bars(60))
+    popular(tmp_cache, "A3.SA", bars_fase_velha_com_evento_novo())
+    config.data["screener"]["max_weeks_since_event"] = 0     # desligado, para o papel entrar
+    frame = to_frame(screen(universo, config, tmp_cache, phases=("C", "D")), config)
+    linha = frame.iloc[0]
+    assert linha["evento_da_fase"].startswith("SOS") and linha["semanas_desde_evento"] == 39
+    assert linha["ultimo_evento_alinhado"] == "Spring" and linha["semanas_desde_ultimo"] == 2

@@ -59,10 +59,10 @@ invalid. = nível de invalidação (folga até ele)*
 ## 4. Candidatos fora da watchlist
 
 {% for bloco in candidates %}
-**{{ bloco.universe }}** — {{ bloco.scanned }} papéis varridos, {{ bloco.candidates|length }}{% if bloco.matched > bloco.candidates|length %} de {{ bloco.matched }}{% endif %} em Fase {{ bloco.phases|join('/') }}{% if bloco.illiquid %}, {{ bloco.illiquid }} descartado(s) por liquidez abaixo de {{ bloco.min_liquidity|fmt('{:,.0f}') }} por semana{% endif %}{% if bloco.stale %}, {{ bloco.stale }} por evento de mais de {{ bloco.max_weeks_since_event }} semanas{% endif %}.
+**{{ bloco.universe }}** — {{ bloco.scanned }} papéis varridos, {{ bloco.candidates|length }}{% if bloco.matched > bloco.candidates|length %} de {{ bloco.matched }}{% endif %} em Fase {{ bloco.phases|join('/') }}{% if bloco.illiquid %}, {{ bloco.illiquid }} descartado(s) por liquidez abaixo de {{ bloco.min_liquidity|fmt('{:,.0f}') }} por semana{% endif %}{% if bloco.stale %}, {{ bloco.stale }} por fase instalada há mais de {{ bloco.max_weeks_since_event }} semanas{% endif %}.
 
 {% if bloco.candidates %}
-| # | papel | fase | evento | há | {{ rs_labels[-1] }} | liquidez/sem. | fech. |
+| # | papel | fase | evento da fase | há | {{ rs_labels[-1] }} | liquidez/sem. | fech. |
 |---|---|---|---|---|---|---|---|
 {% for c in bloco.candidates %}
 | {{ loop.index }} | {{ c.symbol }} | {{ c.phase }} | {{ c.event }} | {{ c.weeks_since|semanas }} | {{ c.rs }} | {{ c.liquidity|fmt('{:,.0f}') }} | {{ c.close }} |

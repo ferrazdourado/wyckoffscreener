@@ -236,11 +236,19 @@ screener:
   # candle semanal formado por três negócios é ruído com nome de sinal.
   # 0 desliga o filtro.
   min_weekly_volume: 2000000
-  # Idade máxima, em semanas, do evento que instalou a fase. Fase é estado e
-  # não expira: um SOS de 82 semanas atrás mantém o papel em Fase D, o que está
-  # certo para ler o gráfico e errado para triar a semana. Medido em 16/09/2026
-  # nos 144 candidatos americanos: <=2 deixa 42, <=4 deixa 52, <=6 deixa 66,
-  # <=8 deixa 77, <=12 deixa 91. 0 desliga o filtro.
+  # Idade máxima, em semanas, do evento que INSTALOU (ou confirmou por último) a
+  # fase. Fase é estado e não expira: um SOS de 82 semanas atrás mantém o papel
+  # em Fase D, o que está certo para ler o gráfico e errado para triar a semana.
+  #
+  # É a idade da LEITURA, não a de um evento qualquer do mesmo viés: a máquina
+  # de estados ignora de propósito um spring que apareça depois de um SOS
+  # (dentro do mesmo viés a fase não retrocede), então datar por ele diria
+  # "mudou agora" sobre um estado parado há mais de um ano. Era o caso do NSC em
+  # 16/09/2026 — Fase D de 60 semanas atrás abrindo a lista americana.
+  #
+  # Medido em 16/09/2026 nos 144 candidatos americanos: <=6 deixa 59, <=12 deixa
+  # 82. Pela idade do último evento alinhado, que é o que o código media antes,
+  # seriam 66 e 91. 0 desliga o filtro.
   max_weeks_since_event: 6
   # Buscar proventos dos papéis do universo? Default não: medido em 14/09/2026,
   # a chamada de proventos custa 1,21s por papel contra 0,98s das 120 semanas de

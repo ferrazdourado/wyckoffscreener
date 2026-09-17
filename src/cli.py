@@ -585,15 +585,15 @@ def cmd_screen(args) -> int:
         print(f"  ({resultado.illiquid} papel(éis) descartado(s) por negociarem menos de "
               f"{resultado.min_liquidity:,.0f} por semana — `screener.min_weekly_volume`)\n")
     if resultado.stale:
-        print(f"  ({resultado.stale} papel(éis) descartado(s) por evento de mais de "
-              f"{resultado.max_weeks_since_event} semanas — "
+        print(f"  ({resultado.stale} papel(éis) descartado(s) por fase instalada há mais "
+              f"de {resultado.max_weeks_since_event} semanas — "
               f"`screener.max_weeks_since_event`)\n")
     frame = to_frame(resultado, config)
     if frame.empty:
         print("  (nenhum papel nas fases pedidas nesta semana)")
     else:
         rs_cols = [f"rs_{int(w)}w" for w in config.require("metrics.relative_strength_weeks")]
-        colunas = ["posicao", "symbol", "fase", "semanas_na_fase", "evento_recente",
+        colunas = ["posicao", "symbol", "fase", "semanas_na_fase", "evento_da_fase",
                    "semanas_desde_evento", *rs_cols, "volume_ratio", "close"]
         colunas = [c for c in colunas if c in frame.columns]
         with pd.option_context("display.width", 220, "display.max_columns", 40):

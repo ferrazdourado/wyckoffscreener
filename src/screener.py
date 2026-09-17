@@ -7,9 +7,10 @@ tem heurística própria; ele só aplica a de sempre em mais gente.
 
 **Ordenação léxica, não nota ponderada.** Um score com pesos arbitrários dá uma
 falsa precisão — "8,3" não quer dizer nada e ninguém consegue auditar de onde
-veio. A ordem aqui é explícita: primeiro a fase (D antes de C), depois quem teve
-evento mais recente, depois a força relativa. Cada critério aparece como coluna,
-então a posição de qualquer papel na lista é conferível a olho.
+veio. A ordem aqui é explícita: primeiro a fase (D antes de C), depois quem tem a
+leitura mais recente — a idade do evento que INSTALOU a fase, não a de um evento
+qualquer que passou por perto —, depois a força relativa. Cada critério aparece
+como coluna, então a posição de qualquer papel na lista é conferível a olho.
 
 **O universo é seu.** `universe.yaml` nasce com uma lista de partida, não com a
 carteira oficial do IBOV — ela muda a cada quadrimestre e sai na B3. Papel que
@@ -128,9 +129,14 @@ def load_universes(path: str | Path = "universe.yaml") -> dict[str, Universe]:
 @dataclass
 class Candidate:
     analysis: TickerAnalysis
+    #: Idade e identidade do evento que instalou a fase — o que filtra e ordena.
     weeks_since_event: int | None
     last_event: object | None
     liquidity: float = 0.0       # volume financeiro semanal típico
+    #: Último evento do mesmo viés, que pode ser bem mais novo que a fase.
+    #: Só informa; vai para o CSV para explicar divergências entre os dois.
+    weeks_since_aligned: int | None = None
+    last_aligned: object | None = None
 
     @property
     def symbol(self) -> str:
@@ -145,7 +151,7 @@ class Candidate:
         return None if value is None else float(value)
 
     def sort_key(self, rs_weeks: int) -> tuple:
-        """Fase, depois recência do evento, depois força relativa. Nessa ordem."""
+        """Fase, depois recência da LEITURA, depois força relativa. Nessa ordem."""
         rs = self.rs(rs_weeks)
         return (
             -self.phase_rank,
@@ -164,7 +170,7 @@ class ScreenResult:
     phases: tuple[str, ...] = ()
     illiquid: int = 0            # descartados pelo piso de liquidez
     min_liquidity: float = 0.0
-    stale: int = 0               # descartados por evento velho demais
+    stale: int = 0               # descartados por fase instalada há tempo demais
     max_weeks_since_event: int = 0
     #: Quantos papéis passaram no filtro de fase E no piso de liquidez, ANTES
     #: do corte do `top`. Sem ele o relatório dizia "25 em Fase C/D" numa semana
@@ -190,12 +196,34 @@ def weekly_liquidity(metrics: pd.DataFrame, weeks: int = 12) -> float:
     return float(financeiro.median()) if not financeiro.empty else 0.0
 
 
-def _weeks_since_event(analysis: TickerAnalysis) -> tuple[int | None, object | None]:
-    """Semanas desde o último evento alinhado ao viés da fase atual.
+def _phase_driver_age(analysis: TickerAnalysis) -> tuple[int | None, object | None]:
+    """Semanas desde o evento que INSTALOU (ou confirmou por último) a fase atual.
 
-    Alinhado ao viés porque um upthrust não recomenda um candidato a acumulação
-    — contá-lo como "evento recente" empurraria o papel para cima da lista pelo
-    motivo errado.
+    É esta a idade que data a leitura, e não a do último evento qualquer do mesmo
+    viés — a distinção decide quem entra na triagem. Em 16/09/2026 o NSC abria a
+    lista americana com Fase D instalada por um SOS de **60 semanas** atrás, e
+    passava porque um spring imprimira na semana anterior. Só que a máquina de
+    estados ignora esse spring de propósito (dentro do mesmo viés a fase não
+    retrocede de D para C), então a leitura que o relatório mostra continuava
+    sendo a de 60 semanas atrás. Datar pelo spring dizia "mudou agora" sobre um
+    estado que não mudava havia mais de um ano — o inventário que
+    `screener.max_weeks_since_event` existe para não deixar entrar.
+
+    Fase sem evento que a date — a B, que é a causa sendo construída — devolve
+    `None`, e quem chama deixa passar.
+    """
+    driver = analysis.phase.driver
+    if driver is None:
+        return None, None
+    return len(analysis.closed) - 1 - driver.index, driver
+
+
+def _last_aligned_event(analysis: TickerAnalysis) -> tuple[int | None, object | None]:
+    """Último evento do mesmo viés da fase — informativo, não filtra nem ordena.
+
+    Alinhado ao viés porque um upthrust não diz nada sobre um candidato a
+    acumulação. Vai para o CSV ao lado da idade da fase: quando os dois números
+    divergem, é ali que se vê por quê.
     """
     bias = analysis.phase.bias
     alinhados = [e for e in analysis.events if e.bias == bias]
@@ -262,12 +290,16 @@ def screen(
         if piso and liquidez < piso:
             resultado.illiquid += 1
             continue
-        idade, ultimo = _weeks_since_event(analysis)
+        idade, driver = _phase_driver_age(analysis)
+        idade_alinhado, alinhado = _last_aligned_event(analysis)
         # Fase é estado e não tem prazo: um SOS de 82 semanas atrás mantém o
         # papel em Fase D para sempre. Para LER o gráfico isso é correto; para
-        # TRIAR a semana, não — o que se procura é o que mudou há pouco.
+        # TRIAR a semana, não — o que se procura é o que mudou há pouco. O que
+        # envelhece é a LEITURA, então a idade medida é a do evento que a
+        # instalou (ver `_phase_driver_age`); um evento novo que a máquina de
+        # estados ignorou de propósito não rejuvenesce nada.
         #
-        # Papel sem evento alinhado ao viés passa direto, em vez de ser
+        # Papel sem evento que date a fase passa direto, em vez de ser
         # descartado: é o caso da Fase B, que é a causa sendo construída e não
         # tem evento para datar. Descartá-la faria este filtro esvaziar em
         # silêncio uma fase que só entra na lista quando alguém a pede em
@@ -275,7 +307,8 @@ def screen(
         if teto_idade and idade is not None and idade > teto_idade:
             resultado.stale += 1
             continue
-        resultado.candidates.append(Candidate(analysis, idade, ultimo, liquidez))
+        resultado.candidates.append(
+            Candidate(analysis, idade, driver, liquidez, idade_alinhado, alinhado))
 
     resultado.candidates.sort(key=lambda c: c.sort_key(rs_weeks))
     resultado.matched = len(resultado.candidates)
@@ -314,8 +347,10 @@ def to_frame(result: ScreenResult, config: Config) -> pd.DataFrame:
             "symbol": c.symbol,
             "fase": a.phase.code,
             "semanas_na_fase": a.phase.weeks_in_phase(len(a.closed)),
-            "evento_recente": c.last_event.label if c.last_event else "",
+            "evento_da_fase": c.last_event.label if c.last_event else "",
             "semanas_desde_evento": c.weeks_since_event,
+            "ultimo_evento_alinhado": c.last_aligned.label if c.last_aligned else "",
+            "semanas_desde_ultimo": c.weeks_since_aligned,
             "proximo_esperado": a.phase.pending,
             "close": a.value("close"),
             "volume_ratio": a.value("volume_ratio"),
