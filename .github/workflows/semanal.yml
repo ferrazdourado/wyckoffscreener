@@ -1,8 +1,8 @@
 # Rotina de sexta-feira, na nuvem.
 #
-# Por que existe: `wyckoff report` é um job em lote de ~5 min por semana, não um
-# serviço. O cron do GitHub Actions cobre isso sem custo (repo público: ilimitado;
-# privado: ~20 min/mês dos 2.000 do tier gratuito).
+# Por que existe: `wyckoff report --screen --pdf` é um job em lote de ~9 min por
+# semana, não um serviço. O cron do GitHub Actions cobre isso sem custo (repo
+# público: ilimitado; privado: ~40 min/mês dos 2.000 do tier gratuito).
 #
 # O que precisa estar configurado em Settings → Secrets and variables → Actions:
 #   WYCKOFF_TELEGRAM_TOKEN    obrigatório p/ o --notify (R9)
@@ -55,11 +55,16 @@ jobs:
       - name: Instalar
         run: pip install -e .
 
-      # O cache guarda o SQLite entre as semanas: com ele o fetch só busca a
-      # semana nova. A chave muda toda semana (senão o cache nunca é regravado);
-      # o restore-keys pega o da semana anterior como ponto de partida.
-      # Se o cache sumir (7 dias sem uso, ou 10 GB no repo), o fetch rebaixa as
-      # 120 semanas — custa minutos, não quebra a rotina.
+      # O cache guarda o SQLite entre as semanas. Ele NÃO torna a coleta
+      # incremental: toda sexta as 120 semanas de cada papel são rebaixadas
+      # inteiras, porque com `auto_adjust=True` um provento reescreve a série
+      # toda e baixar só a ponta misturaria bases de ajuste. O que o cache
+      # entrega é outra coisa: o relatório ainda tem história quando a coleta
+      # falha, e reler no mesmo dia não vai à rede.
+      # A chave muda toda semana (senão o cache nunca é regravado); o
+      # restore-keys pega o da semana anterior como ponto de partida. Se o cache
+      # sumir (7 dias sem uso, ou 10 GB no repo), nada quebra — a coleta já
+      # rebaixa tudo de qualquer jeito.
       - name: Data de hoje (chave do cache)
         id: semana
         run: echo "tag=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"

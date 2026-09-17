@@ -18,13 +18,18 @@ coluna própria no CSV. Três testes de regressão, um deles com a forma do NSC.
 
 ## T2 — `notify.enabled`: comentário contradiz o valor
 `config.yaml:196` diz "`enabled: false` aqui"; a linha 202 traz `true`.
-- [ ] feito
+O comentário passou a dizer o que é verdade: nasce `false` no DEFAULTS e está
+ligado aqui de propósito desde 13/09/2026, e mesmo ligado só `notify` e
+`report --notify` disparam mensagem.
+- [x] feito
 
 ## T3 — comentário do workflow contradiz o README
 `semanal.yml:56` diz "o fetch só busca a semana nova"; o README e o código dizem
 que as 120 semanas são rebaixadas inteiras. Mesmo cabeçalho: "~5 min"/"20 min por
-mês" contra os "9,0 min"/"40 min" medidos.
-- [ ] feito
+mês" contra os "9,0 min"/"40 min" medidos. Os três corrigidos: o comentário do
+cache agora diz o que o cache faz (história quando a coleta falha, releitura sem
+rede) em vez de prometer coleta incremental que o `auto_adjust` impede.
+- [x] feito
 
 ## T4 — números vencidos no README
 "25 de 142" (hoje sai 25 de 66) · "o default segue em 1" para

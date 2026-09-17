@@ -191,8 +191,10 @@ alerts:
   recent_event_weeks: 1
 
 # --- R9: notificação do resumo semanal ------------------------------------
-# Nada é enviado sem pedido explícito: `enabled: false` aqui e, mesmo ligado,
-# só `wyckoff notify` ou `wyckoff report --notify` disparam mensagem.
+# Nada é enviado sem pedido explícito. `enabled` nasce `false` no DEFAULTS do
+# código e está ligado AQUI de propósito (Telegram configurado em 13/09/2026);
+# mesmo ligado, só `wyckoff notify` ou `wyckoff report --notify` disparam
+# mensagem — gerar relatório nunca notifica sozinho.
 # SEGREDOS NÃO ENTRAM NESTE ARQUIVO — o config guarda o NOME da variável de
 # ambiente, e o código lê o valor de lá. Os valores ficam no `.env` (veja
 # `.env.example`), que o `wyckoff` carrega sozinho; variável já exportada na
