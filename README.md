@@ -498,6 +498,26 @@ diz explicitamente que o backtest existe para informar.
 zero. Pode ser o regime, pode ser a regra — com n de 7 a 16 não dá para saber.
 Vale reavaliar quando houver um trecho de baixa na amostra.
 
+**O upthrust com mais toques continua sem prever queda.** A pergunta era se o
+calibre que melhorou o spring (`min_resistance_touches`, espelho do
+`min_support_touches`) faria o mesmo pelo upthrust. Com n de 7 a watchlist não
+responde, então a medição foi nos universos completos (18/09/2026, backtest
+causal, 371 B3 + 518 US). "Caiu" é retorno negativo; "abaixo do índice" é o
+excesso negativo, a coluna justa num período de alta:
+
+| grupo | n | caiu 4s | caiu 13s | caiu 26s | abaixo do índice 4s / 13s / 26s |
+|---|---:|---:|---:|---:|---:|
+| qualquer semana (base) | 83.492 | 47% | 45% | 41% | 55% / 57% / 60% |
+| toques ≥ 1 (`config.yaml`) | 480 | 44% | 41% | 37% | 53% / 57% / 58% |
+| toques ≥ 2 | 401 | 44% | 40% | 38% | 53% / 56% / 58% |
+| toques ≥ 3 | 311 | 46% | 39% | 39% | 56% / 58% / 61% |
+| os 77 cortados de 1 → 2 | 77 | 44% | 47% | 35% | 56% / 63% / 61% |
+
+Os 77 que o segundo toque corta não são piores que os que ficam: a exigência
+só reduz a contagem. Com 3 toques o sinal empata com a base, sem superá-la.
+B3 e EUA separados dizem o mesmo. Por isso o upthrust segue com 1 toque, a
+regra literal. Subir o calibre por simetria com o spring não compraria nada.
+
 ## O que as duas fontes dizem do mesmo papel (08/09/2026, 120 semanas)
 
 A §8 pergunta se o Yahoo entrega bem proventos e splits de papel brasileiro e

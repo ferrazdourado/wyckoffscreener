@@ -167,7 +167,10 @@ events:
     min_volume_ratio: 1.5
     # Range com esta idade ou mais: o upthrust é lido como UTAD (Fase C).
     utad_min_range_weeks: 12
-    # Espelho do calibre do spring (ver acima).
+    # Mesmo mecanismo do calibre do spring, mas NÃO o mesmo valor: medido em
+    # 18/09/2026 (backtest causal, 889 papéis, 480 upthrusts), 2 toques cortam
+    # 16% dos disparos sem mudar a qualidade, e nem 3 superam uma semana
+    # qualquer. Fica na regra literal até haver algo que separe (ver README).
     min_resistance_touches: 1
     touch_tolerance_atr: 0.5
   effort_vs_result:

@@ -41,7 +41,7 @@ O 142 também está fossilizado em `screener.py:171`.
 ## T5 — `min_resistance_touches` se diz espelho do spring e não é
 `config.yaml:180` comenta "espelho do calibre do spring" com 1 contra os 2 do
 spring. Subir junto ou corrigir o comentário.
-- [ ] feito
+- [x] feito — medido (backtest causal, 889 papéis): 2 toques não mudam a qualidade; fica 1 e o comentário diz isso.
 
 ## T6 — otimização de numpy abandonada em `find_ranges`
 `ranges.py:101` extrai `closes` para numpy e nunca usa; o laço segue em
