@@ -15,7 +15,6 @@ from src.screener import (
 from tests.conftest import ranged_bars, set_bar
 from tests.test_events import sos_bar
 
-
 # --------------------------- universo ---------------------------
 
 def bloco(market="b3", benchmark="^BVSP", tickers=("PETR4.SA", "VALE3.SA")):

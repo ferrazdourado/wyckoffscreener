@@ -3,11 +3,10 @@ conferir na cabeça. Nenhum teste toca a rede."""
 
 from __future__ import annotations
 
-
 import pandas as pd
 import pytest
 
-from src.config import Config, DEFAULTS
+from src.config import DEFAULTS, Config
 
 
 def weeks_index(n: int, start: str = "2026-01-05") -> pd.DatetimeIndex:

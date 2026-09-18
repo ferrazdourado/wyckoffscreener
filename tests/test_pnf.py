@@ -16,7 +16,6 @@ from src.pnf import (
 from src.ranges import find_ranges
 from tests.conftest import make_bars, ranged_bars, with_metrics
 
-
 # --------------------------- grades ---------------------------
 
 def test_grade_absoluta_e_uma_divisao():
@@ -214,8 +213,8 @@ def test_contagem_carrega_a_conta_aberta(config):
 
 
 def test_desligado_no_config_nao_conta(config):
-    from src.pnf import for_analysis
     from src.analysis import analyze
+    from src.pnf import for_analysis
     from src.watchlist import WatchItem
 
     config.data["pnf"]["enabled"] = False
@@ -227,8 +226,8 @@ def test_desligado_no_config_nao_conta(config):
 
 def test_vies_indefinido_nao_projeta(config):
     """Sem lado declarado não há sentido a projetar."""
-    from src.pnf import for_analysis
     from src.analysis import analyze
+    from src.pnf import for_analysis
     from src.watchlist import WatchItem
 
     df = with_metrics(ranged_bars(25), config)

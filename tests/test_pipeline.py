@@ -6,7 +6,13 @@ import pandas as pd
 import pytest
 
 from src.data.provider import DataProvider, FetchError
-from src.pipeline import build_metrics, export_csv, fetch_all, mark_partial, market_hours_for
+from src.pipeline import (
+    build_metrics,
+    export_csv,
+    fetch_all,
+    mark_partial,
+    market_hours_for,
+)
 from src.watchlist import parse_watchlist
 from tests.conftest import make_bars
 

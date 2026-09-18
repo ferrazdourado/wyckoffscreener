@@ -17,7 +17,6 @@ from src.metrics import (
 )
 from tests.conftest import make_bars, set_bar
 
-
 # --------------------------- volume ---------------------------
 
 def test_volume_ratio_valor_exato():

@@ -11,12 +11,11 @@ import pandas as pd
 import pytest
 
 from src.cli import main, summary_columns
-from src.config import Config, DEFAULTS
+from src.config import DEFAULTS, Config
 from src.metrics import compute_metrics, true_range
 from src.pipeline import _data_week_tag, _market_of, export_csv
 from src.watchlist import load_watchlist, parse_watchlist
 from tests.conftest import make_bars
-
 
 # --- 1. `add` corrompia a watchlist com nota contendo aspas ---
 

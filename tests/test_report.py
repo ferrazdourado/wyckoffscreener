@@ -74,7 +74,7 @@ def test_evento_da_semana_aparece_com_os_numeros(cenario):
 
 def test_renderiza_markdown_e_html(cenario):
     config, wl, m = cenario
-    paths, model = generate(wl, m, config, AGORA)
+    paths, _model = generate(wl, m, config, AGORA)
     assert paths.markdown.exists() and paths.html.exists()
     md = paths.markdown.read_text(encoding="utf-8")
     html = paths.html.read_text(encoding="utf-8")

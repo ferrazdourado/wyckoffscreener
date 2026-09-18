@@ -6,7 +6,7 @@ Nenhum teste toca a rede: as fontes são dublês que respondem ou explodem.
 import pandas as pd
 import pytest
 
-from src.config import Config, DEFAULTS
+from src.config import DEFAULTS, Config
 from src.data.factory import (
     ChainProvider,
     ProviderError,

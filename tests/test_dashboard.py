@@ -15,12 +15,12 @@ import yaml
 
 pytest.importorskip("streamlit", reason="dashboard é extra opcional: pip install streamlit")
 
-from pathlib import Path  # noqa: E402
+from pathlib import Path
 
-from streamlit.testing.v1 import AppTest  # noqa: E402
+from streamlit.testing.v1 import AppTest
 
-from src.data.cache import Cache  # noqa: E402
-from tests.conftest import weeks_index  # noqa: E402
+from src.data.cache import Cache
+from tests.conftest import weeks_index
 
 APP = str(Path(__file__).resolve().parent.parent / "src" / "dashboard.py")
 

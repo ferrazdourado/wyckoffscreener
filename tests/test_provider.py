@@ -6,7 +6,13 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 import pytest
 
-from src.data.provider import FetchError, MarketHours, is_week_closed, normalize_ohlcv, week_start
+from src.data.provider import (
+    FetchError,
+    MarketHours,
+    is_week_closed,
+    normalize_ohlcv,
+    week_start,
+)
 
 B3 = MarketHours(timezone="America/Sao_Paulo", close="18:00")
 US = MarketHours(timezone="America/New_York", close="16:00")
@@ -43,7 +49,7 @@ def test_mercados_fecham_em_horarios_diferentes():
 
 
 def test_now_em_outro_fuso_e_convertido():
-    utc = dt.datetime(2026, 9, 4, 20, 59, tzinfo=dt.timezone.utc)  # 17:59 BRT
+    utc = dt.datetime(2026, 9, 4, 20, 59, tzinfo=dt.UTC)  # 17:59 BRT
     assert not is_week_closed(SEGUNDA, B3, utc)
     assert is_week_closed(SEGUNDA, B3, utc + dt.timedelta(minutes=1))
 
@@ -133,7 +139,7 @@ def test_colunas_faltando_falham_com_mensagem_util():
 
 # --------------------------- agregação diário -> semanal ---------------------------
 
-from src.data.provider import aggregate_weekly  # noqa: E402
+from src.data.provider import aggregate_weekly
 
 
 def diario(datas, **series):

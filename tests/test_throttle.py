@@ -8,7 +8,7 @@ insistiu, quando desconfiou de que o problema não era o papel e sim a fonte.
 import pandas as pd
 import pytest
 
-from src.config import Config, DEFAULTS
+from src.config import DEFAULTS, Config
 from src.data.provider import DataProvider, FetchError
 from src.data.throttle import ThrottledProvider, ThrottlePolicy, policy_from_config
 
@@ -161,7 +161,7 @@ def test_depois_da_pausa_a_serie_recomeca_do_zero():
     viraria uma sequência de esperas de um minuto."""
     fonte = Fonte(sempre={"A", "B", "C", "D"})
     policy = ThrottlePolicy(retries=0, cooldown_after=3, cooldown=60)
-    provider, relogio = montar(policy, fonte)
+    provider, _relogio = montar(policy, fonte)
     for symbol in ("A", "B", "C", "D"):
         with pytest.raises(FetchError):
             provider.daily_bars(symbol, 120)

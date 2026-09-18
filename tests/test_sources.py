@@ -100,7 +100,7 @@ def test_provento_registrado_por_uma_fonte_so_aparece():
 
 
 def test_provento_fora_da_janela_comum_nao_conta():
-    so_a, so_b = compare_actions(
+    so_a, _so_b = compare_actions(
         acoes(("2020-01-02", "dividend", 0.5)), acoes(),
         window=(dt.date(2026, 8, 10), dt.date(2026, 8, 12)),
     )
