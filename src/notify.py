@@ -130,6 +130,26 @@ def build_message(model: dict, max_chars: int = TELEGRAM_MAX) -> Message:
                           f"{alerta.level:.2f} ({abs(alerta.distance_pct):.1%} além)")
         linhas.append("")
 
+    # A lista curta vem logo depois do que exige ação: é o que a sexta à noite
+    # vai abrir no gráfico. Antes da watchlist também porque o truncamento
+    # corta do fim.
+    for bloco in model.get("momentum") or []:
+        semana = bloco["week"].strftime("%d/%m") if bloco["week"] else "—"
+        linhas.append(f"TOP {len(bloco['picks'])} MOMENTUM — {bloco['market']} "
+                      f"(semana {semana}, {bloco['ranked']} líquidos)")
+        for posicao, pick in enumerate(bloco["picks"], start=1):
+            marca = " ★" if pick["in_watchlist"] else ""
+            linhas.append(f"{posicao}. {pick['symbol']}{marca} {pick['momentum']} · "
+                          f"{bloco['skip']}s {pick['recent']} · FR {pick['rs']}")
+        if not bloco["picks"]:
+            linhas.append("• nenhum papel com histórico, liquidez e candle em dia")
+        linhas.append("")
+    if model.get("momentum"):
+        primeiro = model["momentum"][0]
+        legenda = (f"Momentum = {primeiro['lookback']}s sem as {primeiro['skip']} últimas; "
+                   f"★ = watchlist. Filtro de atenção, não sinal de compra.")
+        linhas += [legenda, ""]
+
     eventos = model["week_events"]
     if eventos:
         linhas.append(f"EVENTOS DA SEMANA ({len(eventos)})")

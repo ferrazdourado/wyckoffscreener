@@ -148,6 +148,14 @@ DEFAULTS: dict[str, Any] = {
         # não precisa dela. Ver `refresh` em screener.py.
         "fetch_actions": False,
         "report_universes": ["b3_completa", "us_completa"],
+        # Lista curta por momentum de cada universo de `report_universes`.
+        # Ver src/momentum.py para o porquê de 52/4.
+        "momentum": {
+            "enabled": True,
+            "lookback_weeks": 52,
+            "skip_weeks": 4,
+            "top": 10,
+        },
     },
 }
 

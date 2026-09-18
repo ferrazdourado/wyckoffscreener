@@ -268,9 +268,10 @@ def test_report_com_screen_acrescenta_a_secao_e_renumera(projeto, tmp_path, monk
                         .parse_universes(__import__("yaml").safe_load(universo.read_text()), str(universo)))
     main([*args, "report", "--offline", "--screen", "--universes", "teste"])
     texto = next((raiz / "reports").glob("*.md")).read_text(encoding="utf-8")
-    assert "## 4. Candidatos fora da watchlist" in texto
-    assert "## 5. Papel a papel" in texto
-    assert "## 6. Erros de coleta" in texto
+    assert "## 4. Top por momentum" in texto
+    assert "## 5. Candidatos fora da watchlist" in texto
+    assert "## 6. Papel a papel" in texto
+    assert "## 7. Erros de coleta" in texto
 
 
 def test_papel_da_watchlist_nao_aparece_como_candidato_no_relatorio(projeto, tmp_path, monkeypatch):
@@ -281,7 +282,7 @@ def test_papel_da_watchlist_nao_aparece_como_candidato_no_relatorio(projeto, tmp
                         .parse_universes(__import__("yaml").safe_load(universo.read_text()), str(universo)))
     main([*args, "report", "--offline", "--screen", "--universes", "teste"])
     texto = next((raiz / "reports").glob("*.md")).read_text(encoding="utf-8")
-    secao = texto.split("## 4. Candidatos")[1].split("## 5.")[0]
+    secao = texto.split("## 5. Candidatos")[1].split("## 6.")[0]
     assert "PETR4.SA" not in secao
 
 
@@ -295,3 +296,21 @@ def test_universo_inexistente_nao_derruba_o_relatorio(projeto, tmp_path, monkeyp
     assert main([*args, "report", "--offline", "--screen", "--universes", "nao_existe"]) == 0
     assert "não existe" in capsys.readouterr().err
     assert list((raiz / "reports").glob("*.html"))
+
+
+def test_notify_manda_a_lista_de_momentum_lida_do_cache(projeto, monkeypatch, capsys):
+    """Sem varredura: `wyckoff notify` ranqueia o que já está no cache."""
+    from src.screener import Universe
+
+    args, raiz = projeto
+    semanas = pd.date_range("2025-01-06", periods=60, freq="7D", name="week_start")
+    closes = [10.0 * 1.02 ** i for i in range(60)]
+    bars = pd.DataFrame({"open": closes, "high": closes, "low": closes, "close": closes,
+                         "volume": 1_000_000.0, "is_partial": False}, index=semanas)
+    with Cache(raiz / "wyckoff.sqlite") as cache:
+        cache.upsert_bars("SOBE.SA", bars)
+    monkeypatch.setattr("src.screener.load_universes", lambda caminho: {
+        "b3_completa": Universe("b3_completa", "b3", "^BVSP", ("SOBE.SA",))})
+    assert main([*args, "notify", "--dry-run", "--force"]) == 0
+    saida = capsys.readouterr().out
+    assert "TOP 1 MOMENTUM — B3" in saida and "1. SOBE.SA +" in saida

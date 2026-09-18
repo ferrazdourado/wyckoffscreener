@@ -170,8 +170,53 @@
 FR = força relativa contra o índice · sem. = semanas na fase atual ·
 invalid. = nível de invalidação (folga até ele)</p>
 
+{% set sec = namespace(n=3) %}
+{% if momentum %}
+{% set sec.n = sec.n + 1 %}
+<h2>{{ sec.n }}. Top por momentum</h2>
+<p class="meta">Momentum = retorno de {{ momentum[0].lookback }} semanas sem as
+  {{ momentum[0].skip }} últimas; a coluna seguinte é o retorno dessas semanas
+  puladas, só para informar. Filtro de atenção para o gráfico e a análise
+  fundamentalista, não sinal de compra.</p>
+{% for bloco in momentum %}
+<p class="sub"><b>{{ bloco.market }}</b> ({{ bloco.universe }}), semana de
+  {{ bloco.week.strftime('%d/%m/%Y') if bloco.week else '—' }}:
+  {{ bloco.picks|length }} de {{ bloco.ranked }} papéis líquidos e em dia{% if bloco.illiquid %},
+  {{ bloco.illiquid }} abaixo do piso de liquidez{% endif %}{% if bloco.short_history %},
+  {{ bloco.short_history }} sem {{ bloco.lookback + 1 }} semanas de histórico{% endif %}{% if bloco.outdated %},
+  {{ bloco.outdated }} com candle desatualizado{% endif %}{% if bloco.missing %},
+  {{ bloco.missing }} sem dados no cache{% endif %}.</p>
+{% if bloco.picks %}
+<div class="scroll">
+<table>
+  <thead><tr>
+    <th>#</th><th class="left">papel</th><th>momentum</th><th>últimas {{ bloco.skip }}s</th>
+    <th>{{ rs_labels[-1] }}</th><th>fech.</th><th>liquidez/sem.</th>
+  </tr></thead>
+  <tbody>
+  {% for p in bloco.picks %}
+    <tr>
+      <td>{{ loop.index }}</td>
+      <td class="left">{{ p.symbol }}{% if p.in_watchlist %} <span class="meta">(watchlist)</span>{% endif %}</td>
+      <td>{{ p.momentum }}</td>
+      <td>{{ p.recent }}</td>
+      <td>{{ p.rs }}</td>
+      <td>{{ p.close }}</td>
+      <td>{{ p.liquidity|fmt('{:,.0f}') }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<div class="card ok">Nenhum papel com histórico, liquidez e candle em dia.</div>
+{% endif %}
+{% endfor %}
+{% endif %}
+
 {% if candidates %}
-<h2>4. Candidatos fora da watchlist</h2>
+{% set sec.n = sec.n + 1 %}
+<h2>{{ sec.n }}. Candidatos fora da watchlist</h2>
 {% for bloco in candidates %}
 <p class="sub"><b>{{ bloco.universe }}</b> — {{ bloco.scanned }} papéis varridos,
   {{ bloco.candidates|length }}{% if bloco.matched > bloco.candidates|length %} de {{ bloco.matched }}{% endif %} em Fase {{ bloco.phases|join('/') }}{% if bloco.illiquid %},
@@ -211,7 +256,8 @@ invalid. = nível de invalidação (folga até ele)</p>
   detectado, não de uma leitura sua. Confira o gráfico antes de adotar.</p>
 {% endif %}
 
-<h2>{{ 5 if candidates else 4 }}. Papel a papel</h2>
+{% set sec.n = sec.n + 1 %}
+<h2>{{ sec.n }}. Papel a papel</h2>
 {% for s in sections %}
 <h3 id="{{ s.symbol }}">{{ s.symbol }} — {{ s.analysis.phase.label }}</h3>
 {% if s.chart_uri %}
@@ -276,7 +322,8 @@ invalid. = nível de invalidação (folga até ele)</p>
 {% endif %}
 {% endfor %}
 
-<h2>{{ 6 if candidates else 5 }}. Erros de coleta</h2>
+{% set sec.n = sec.n + 1 %}
+<h2>{{ sec.n }}. Erros de coleta</h2>
 {% if problems %}
   {% for p in problems %}
   <div class="card {% if p.origem in ('coleta', 'cache') %}alert{% else %}note{% endif %}">

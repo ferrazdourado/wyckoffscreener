@@ -378,11 +378,12 @@ def cmd_report(args) -> int:
         print("\nNenhum papel com dados. Rode `wyckoff fetch` primeiro.", file=sys.stderr)
         return 1
 
-    resultados_screen = _varrer_universos(args, config, now, watchlist) if args.screen else None
+    resultados_screen, momentum = (_varrer_universos(args, config, now, watchlist)
+                                   if args.screen else (None, None))
 
     print(f"Analisando e desenhando {len(metrics)} papéis...")
     paths, model = generate(watchlist, metrics, config, now, fetch_errors, problems, daily,
-                            resultados_screen)
+                            resultados_screen, momentum)
 
     print(f"\nRelatório da semana {model['tag']} ({model['week_start']:%d/%m/%Y}):")
     print(f"  Markdown: {paths.markdown}")
@@ -409,25 +410,28 @@ def cmd_report(args) -> int:
     return codigo
 
 
-def _varrer_universos(args, config, now, watchlist=None) -> list:
-    """Varredura dos universos amplos para a seção de candidatos do relatório.
+def _varrer_universos(args, config, now, watchlist=None) -> tuple[list, list]:
+    """Varredura dos universos amplos: candidatos Wyckoff e lista de momentum.
 
     Erro num universo não derruba o relatório: a seção sai sem ele, e o motivo
     aparece no terminal. O entregável de sexta é a leitura da watchlist.
     """
+    from .momentum import rank_universe
     from .screener import load_universes, refresh, screen
 
     nomes = ([n.strip() for n in args.universes.split(",")] if args.universes
              else list(config.get("screener.report_universes", []) or []))
     if not nomes:
         print("  ! nenhum universo configurado em `screener.report_universes`", file=sys.stderr)
-        return []
+        return [], []
 
     caminho = config.get("screener.universe_path", "universe.yaml")
     universos = load_universes(caminho)
     fases = tuple(str(f).upper() for f in config.get("screener.phases", ["C", "D"]))
     limite = int(config.get("screener.top", 25))
-    resultados = []
+    com_momentum = bool(config.get("screener.momentum.enabled", False))
+    acompanhados = set(watchlist.symbols) if watchlist else set()
+    resultados, momentum = [], []
 
     with Cache(config.require("data.cache_path")) as cache:
         for nome in nomes:
@@ -443,8 +447,34 @@ def _varrer_universos(args, config, now, watchlist=None) -> list:
                 if falhas:
                     print(f"  {falhas} papel(éis) sem dados — seguem fora da varredura")
             resultados.append(screen(universo, config, cache, phases=fases, limit=limite,
-                                     exclude=set(watchlist.symbols) if watchlist else None))
-    return resultados
+                                     exclude=acompanhados or None))
+            if com_momentum:
+                momentum.append(rank_universe(universo, config, cache, acompanhados))
+    return resultados, momentum
+
+
+def _momentum_do_cache(config, watchlist) -> list:
+    """Lista de momentum lida só do cache, para `wyckoff notify` sem varredura.
+
+    A semana de referência sai na mensagem: cache velho aparece como semana
+    velha, em vez de passar por lista desta sexta.
+    """
+    from .momentum import rank_universe
+    from .screener import UniverseError, load_universes
+
+    if not config.get("screener.momentum.enabled", False):
+        return []
+    try:
+        universos = load_universes(config.get("screener.universe_path", "universe.yaml"))
+    except UniverseError as exc:
+        print(f"  ! momentum fora do resumo: {exc}", file=sys.stderr)
+        return []
+    out = []
+    with Cache(config.require("data.cache_path")) as cache:
+        for nome in config.get("screener.report_universes", []) or []:
+            if nome in universos:
+                out.append(rank_universe(universos[nome], config, cache, set(watchlist.symbols)))
+    return out
 
 
 def cmd_analyze(args) -> int:
@@ -528,7 +558,8 @@ def cmd_notify(args) -> int:
         print("Nenhum papel com dados. Rode `wyckoff fetch` primeiro.", file=sys.stderr)
         return 1
     # Sem charts_root: o resumo é texto, não precisa desenhar nada.
-    model = build_model(watchlist, metrics, config, dt.datetime.now(), metric_warnings=problems)
+    model = build_model(watchlist, metrics, config, dt.datetime.now(), metric_warnings=problems,
+                        momentum_results=_momentum_do_cache(config, watchlist))
     if args.dry_run:
         from .notify import build_message
 

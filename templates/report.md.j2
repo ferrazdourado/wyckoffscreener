@@ -55,8 +55,31 @@ Nenhum evento Wyckoff disparado na semana de {{ week_start.strftime('%d/%m/%Y') 
 FR = força relativa contra o índice · sem. = semanas na fase atual ·
 invalid. = nível de invalidação (folga até ele)*
 
+{% set sec = namespace(n=3) %}
+{% if momentum %}
+{% set sec.n = sec.n + 1 %}
+## {{ sec.n }}. Top por momentum
+
+*Momentum = retorno de {{ momentum[0].lookback }} semanas sem as {{ momentum[0].skip }} últimas; a coluna seguinte é o retorno dessas semanas puladas, só para informar. Filtro de atenção para o gráfico e a análise fundamentalista, não sinal de compra.*
+
+{% for bloco in momentum %}
+**{{ bloco.market }}** ({{ bloco.universe }}), semana de {{ bloco.week.strftime('%d/%m/%Y') if bloco.week else '—' }}: {{ bloco.picks|length }} de {{ bloco.ranked }} papéis líquidos e em dia{% if bloco.illiquid %}, {{ bloco.illiquid }} abaixo do piso de liquidez{% endif %}{% if bloco.short_history %}, {{ bloco.short_history }} sem {{ bloco.lookback + 1 }} semanas de histórico{% endif %}{% if bloco.outdated %}, {{ bloco.outdated }} com candle desatualizado{% endif %}{% if bloco.missing %}, {{ bloco.missing }} sem dados no cache{% endif %}.
+
+{% if bloco.picks %}
+| # | papel | momentum | últimas {{ bloco.skip }}s | {{ rs_labels[-1] }} | fech. | liquidez/sem. |
+|---|---|---|---|---|---|---|
+{% for p in bloco.picks %}
+| {{ loop.index }} | {{ p.symbol }}{% if p.in_watchlist %} (watchlist){% endif %} | {{ p.momentum }} | {{ p.recent }} | {{ p.rs }} | {{ p.close }} | {{ p.liquidity|fmt('{:,.0f}') }} |
+{% endfor %}
+{% else %}
+Nenhum papel com histórico, liquidez e candle em dia.
+{% endif %}
+
+{% endfor %}
+{% endif %}
 {% if candidates %}
-## 4. Candidatos fora da watchlist
+{% set sec.n = sec.n + 1 %}
+## {{ sec.n }}. Candidatos fora da watchlist
 
 {% for bloco in candidates %}
 **{{ bloco.universe }}** — {{ bloco.scanned }} papéis varridos, {{ bloco.candidates|length }}{% if bloco.matched > bloco.candidates|length %} de {{ bloco.matched }}{% endif %} em Fase {{ bloco.phases|join('/') }}{% if bloco.illiquid %}, {{ bloco.illiquid }} descartado(s) por liquidez abaixo de {{ bloco.min_liquidity|fmt('{:,.0f}') }} por semana{% endif %}{% if bloco.stale %}, {{ bloco.stale }} por fase instalada há mais de {{ bloco.max_weeks_since_event }} semanas{% endif %}.
@@ -85,7 +108,8 @@ Nenhum candidato nas fases pedidas.
 > leitura sua. Confira o gráfico antes de adotar.
 
 {% endif %}
-## {{ 5 if candidates else 4 }}. Papel a papel
+{% set sec.n = sec.n + 1 %}
+## {{ sec.n }}. Papel a papel
 
 {% for s in sections %}
 ### {{ s.symbol }} — {{ s.analysis.phase.label }}
@@ -147,7 +171,8 @@ Nenhum evento detectado na janela do gráfico.
 
 {% endfor %}
 
-## {{ 6 if candidates else 5 }}. Erros de coleta
+{% set sec.n = sec.n + 1 %}
+## {{ sec.n }}. Erros de coleta
 
 {% if problems %}
 {% for p in problems %}

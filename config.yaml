@@ -264,6 +264,22 @@ screener:
   fetch_actions: false
   # Universos varridos por `wyckoff report --screen`.
   report_universes: [b3_completa, us_completa]
+  # Lista curta de cada universo acima, ordenada por momentum: é ela que vai
+  # para o Telegram, logo depois das invalidações. Pedido de 18/09/2026, até
+  # aparecer um conjunto de indicadores que meça melhor.
+  # Momentum = retorno de `lookback_weeks` semanas sem as `skip_weeks` últimas
+  # (12 meses sem o último, a definição clássica). Medido em 18/09/2026, 10 anos
+  # semanais, top 10 da semana contra a média dos papéis líquidos, 13 semanas
+  # à frente: EUA +2,7% (composição do S&P 500 corrigida), B3 +1,8%, nenhum
+  # dos 15 indicadores testados acima de t ~ 1,7. Pico de volume: EUA -0,1%,
+  # B3 -1,8%. É filtro de atenção, não sinal de compra.
+  # Usa o mesmo piso de liquidez (`min_weekly_volume`) e inclui papel da
+  # watchlist, marcado.
+  momentum:
+    enabled: true
+    lookback_weeks: 52
+    skip_weeks: 4
+    top: 10
 
 # --- R10: contagem de causa (Ponto & Figura) ------------------------------
 # Estimativa grosseira: o insumo é o candle SEMANAL, não intradiário. Serve

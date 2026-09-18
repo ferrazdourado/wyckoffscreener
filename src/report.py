@@ -75,6 +75,7 @@ def build_model(
     charts_root: Path | None = None,
     daily: dict[str, pd.DataFrame] | None = None,
     screen_results: list | None = None,
+    momentum_results: list | None = None,
 ) -> dict:
     """Todo o conteúdo do relatório, pronto para os dois templates.
 
@@ -155,6 +156,7 @@ def build_model(
         "week_events": week_events,
         "rows": rows,
         "candidates": _candidate_blocks(screen_results, config),
+        "momentum": _momentum_blocks(momentum_results),
         "rs_labels": [label for _, label in rs_cols],
         "sections": sections,
         "problems": _merge_problems(fetch_errors, missing, metric_warnings, analysis_warnings),
@@ -248,6 +250,38 @@ def _candidate_blocks(screen_results, config: Config) -> list[dict]:
     return blocos
 
 
+MARKET_LABEL = {"b3": "B3", "us": "EUA"}
+
+
+def _momentum_blocks(momentum_results) -> list[dict]:
+    """Listas de momentum no formato que os templates e o Telegram consomem."""
+    blocos = []
+    for r in momentum_results or []:
+        blocos.append({
+            "universe": r.universe.name,
+            "market": MARKET_LABEL.get(r.universe.market, r.universe.market),
+            "week": r.week,
+            "lookback": r.lookback,
+            "skip": r.skip,
+            "scanned": r.scanned,
+            "ranked": r.ranked,
+            "illiquid": r.illiquid,
+            "short_history": r.short_history,
+            "outdated": r.outdated,
+            "missing": r.missing,
+            "picks": [{
+                "symbol": p.symbol,
+                "momentum": _fmt(p.momentum, "{:+.0%}"),
+                "recent": _fmt(p.recent, "{:+.1%}"),
+                "rs": _fmt(p.rs, "{:+.1%}"),
+                "close": _fmt(p.close),
+                "liquidity": p.liquidity,
+                "in_watchlist": p.in_watchlist,
+            } for p in r.picks],
+        })
+    return blocos
+
+
 def _env() -> Environment:
     env = Environment(
         loader=FileSystemLoader(str(TEMPLATE_DIR)),
@@ -281,10 +315,11 @@ def generate(
     metric_warnings: list | None = None,
     daily: dict[str, pd.DataFrame] | None = None,
     screen_results: list | None = None,
+    momentum_results: list | None = None,
 ) -> tuple[ReportPaths, dict]:
     """Caminho completo de `wyckoff report`: analisa, desenha, renderiza."""
     now = now or dt.datetime.now()
     out_dir = Path(config.get("output.reports_dir", "reports"))
     model = build_model(watchlist, metrics, config, now, fetch_errors, metric_warnings,
-                        out_dir, daily, screen_results)
+                        out_dir, daily, screen_results, momentum_results)
     return render(model, config), model
