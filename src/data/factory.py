@@ -166,10 +166,10 @@ def build_provider(config: Config, watchlist=None, market: str | None = None) ->
         return principal
 
     if market is not None:
-        market_of = lambda _symbol: market            # noqa: E731 - lote de mercado único
+        market_of = lambda _symbol: market
     elif watchlist is not None:
         from ..pipeline import _market_of
-        market_of = lambda symbol: _market_of(symbol, watchlist)   # noqa: E731
+        market_of = lambda symbol: _market_of(symbol, watchlist)
     else:
         market_of = market_of_symbol
     return RoutingProvider(principal, by_market, market_of)

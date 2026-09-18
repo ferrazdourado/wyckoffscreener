@@ -494,7 +494,7 @@ def _detect_last_point(
                 Check("mínima do recuo" if up else "máxima do repique",
                       float(seg_lo.min()) if up else float(seg_hi.max()),
                       ">=" if up else "<=", level, "{:.2f}"),
-                Check(f"volume da última semana / média", _val(A, "volume_ratio", run_end)),
+                Check("volume da última semana / média", _val(A, "volume_ratio", run_end)),
             ]
             if not (holds and pulled_back and _all_passed(checks)):
                 continue

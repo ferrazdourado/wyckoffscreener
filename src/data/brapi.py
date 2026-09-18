@@ -38,6 +38,7 @@ ajuste e tratamento de erro sem tocar a rede.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import urllib.error
 import urllib.parse
@@ -232,10 +233,8 @@ def _http_get(url: str, timeout: float) -> bytes:
             return resposta.read()
     except urllib.error.HTTPError as exc:
         corpo = ""
-        try:
+        with contextlib.suppress(OSError, ValueError, AttributeError):  # corpo é só enfeite da mensagem
             corpo = json.loads(exc.read().decode("utf-8")).get("message", "")
-        except Exception:
-            pass
         raise FetchError(f"brapi HTTP {exc.code}{f' — {corpo}' if corpo else ''}") from exc
     except Exception as exc:
         raise FetchError(f"brapi: falha de rede — {exc}") from exc

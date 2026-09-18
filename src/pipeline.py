@@ -158,7 +158,7 @@ def fetch_all(
         except FetchError as exc:
             cache.record_fetch(symbol, "error", 0, str(exc), now=now)
             report.statuses.append(SymbolStatus(symbol, "error", 0, str(exc)))
-        except Exception as exc:  # bug nosso ou fonte fora do contrato: não derruba o lote
+        except Exception as exc:  # noqa: BLE001 — bug nosso ou fonte fora do contrato: não derruba o lote
             cache.record_fetch(symbol, "error", 0, repr(exc), now=now)
             report.statuses.append(SymbolStatus(symbol, "error", 0, f"erro inesperado: {exc!r}"))
 

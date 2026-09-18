@@ -17,13 +17,13 @@ import matplotlib
 
 matplotlib.use("Agg")
 
-import matplotlib.pyplot as plt  # noqa: E402
-import mplfinance as mpf  # noqa: E402
-import pandas as pd  # noqa: E402
+import matplotlib.pyplot as plt
+import mplfinance as mpf
+import pandas as pd
 
-from .analysis import TickerAnalysis  # noqa: E402
-from .config import Config  # noqa: E402
-from .events import ACUMULACAO, DISTRIBUICAO, Event  # noqa: E402
+from .analysis import TickerAnalysis
+from .config import Config
+from .events import ACUMULACAO, DISTRIBUICAO, Event
 
 # Sigla de cada evento no gráfico — o relatório traz o nome por extenso embaixo.
 ABBREV = {
@@ -82,14 +82,14 @@ def render(analysis: TickerAnalysis, config: Config, out_dir: Path) -> Path | No
         hcolors.append("#b3261e")
         hstyles.append("-")
 
-    kwargs = dict(
-        type="candle", volume=True, style="charles", figratio=(16, 9), figscale=1.1,
-        datetime_format="%d/%m/%y", xrotation=0, tight_layout=True, returnfig=True,
-        ylabel="preço", ylabel_lower="volume",
-        title=f"\n{analysis.symbol} — semanal — {analysis.phase.label}",
-    )
+    kwargs = {
+        "type": "candle", "volume": True, "style": "charles", "figratio": (16, 9), "figscale": 1.1,
+        "datetime_format": "%d/%m/%y", "xrotation": 0, "tight_layout": True, "returnfig": True,
+        "ylabel": "preço", "ylabel_lower": "volume",
+        "title": f"\n{analysis.symbol} — semanal — {analysis.phase.label}",
+    }
     if hlines:
-        kwargs["hlines"] = dict(hlines=hlines, colors=hcolors, linestyle=hstyles, linewidths=1.0)
+        kwargs["hlines"] = {"hlines": hlines, "colors": hcolors, "linestyle": hstyles, "linewidths": 1.0}
 
     fig, axes = mpf.plot(df, **kwargs)
     ax = axes[0]
@@ -123,8 +123,8 @@ def render(analysis: TickerAnalysis, config: Config, out_dir: Path) -> Path | No
             sigla, xy=(pos, y), ha="center",
             va="top" if bullish else "bottom",
             fontsize=7.5, fontweight="bold", color=_color(event),
-            bbox=dict(boxstyle="round,pad=0.18", facecolor="white",
-                      edgecolor=_color(event), linewidth=0.6, alpha=0.9),
+            bbox={"boxstyle": "round,pad=0.18", "facecolor": "white",
+                      "edgecolor": _color(event), "linewidth": 0.6, "alpha": 0.9},
         )
 
     # A pilha de anotações pode passar do desenho dos candles; abrir espaço para
@@ -144,8 +144,8 @@ def render(analysis: TickerAnalysis, config: Config, out_dir: Path) -> Path | No
         # Rodapé do painel de preço: o topo é do título e das anotações de eventos.
         ax.text(0.005, 0.015, "  ·  ".join(legenda), transform=ax.transAxes,
                 fontsize=7.5, va="bottom", color="#555",
-                bbox=dict(boxstyle="round,pad=0.25", facecolor="white",
-                          edgecolor="none", alpha=0.85))
+                bbox={"boxstyle": "round,pad=0.25", "facecolor": "white",
+                          "edgecolor": "none", "alpha": 0.85})
 
     fig.savefig(path, dpi=110, bbox_inches="tight")
     plt.close(fig)

@@ -29,15 +29,16 @@ RAIZ = Path(__file__).resolve().parent.parent
 if str(RAIZ) not in sys.path:
     sys.path.insert(0, str(RAIZ))
 
-import pandas as pd  # noqa: E402
-import streamlit as st  # noqa: E402
+import pandas as pd
+import streamlit as st
 
-from src import charts  # noqa: E402
-from src.config import load_config  # noqa: E402
-from src.data.cache import Cache  # noqa: E402
-from src.pipeline import build_metrics  # noqa: E402
-from src.report import DISCLAIMER, build_model  # noqa: E402
-from src.watchlist import load_watchlist  # noqa: E402
+from src import charts
+from src.config import load_config
+from src.data.cache import Cache
+from src.pipeline import build_metrics
+from src.report import DISCLAIMER, build_model
+from src.watchlist import load_watchlist
+
 
 def _conferencias(evento) -> pd.DataFrame:
     """Os números que dispararam a regra — a auditabilidade que a spec exige."""
@@ -232,12 +233,12 @@ def main() -> None:
     st.set_page_config(page_title="Wyckoff Screener", page_icon="📈", layout="wide")
     args = argumentos()
     try:
-        config, watchlist, modelo, ultima_coleta = carregar(
+        config, _, modelo, ultima_coleta = carregar(
             args.config, args.watchlist,
             (_carimbo(args.config), _carimbo(args.watchlist),
              _carimbo(str(load_config(args.config).require("data.cache_path")))),
         )
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 — qualquer falha vira mensagem na tela, não traceback
         st.error(f"Não foi possível carregar: {exc}")
         st.caption("Confira os caminhos em `wyckoff dashboard --config ... --watchlist ...` "
                    "e se `wyckoff fetch` já rodou.")

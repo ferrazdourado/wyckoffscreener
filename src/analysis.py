@@ -19,7 +19,13 @@ from .alerts import InvalidationAlert, check_invalidation, distance_to_invalidat
 from .config import Config
 from .events import Event, detect_all
 from .phases import PhaseState, classify
-from .ranges import TradingRange, active_range, governing_range, resolve_ranges, summarize
+from .ranges import (
+    TradingRange,
+    active_range,
+    governing_range,
+    resolve_ranges,
+    summarize,
+)
 from .watchlist import WatchItem
 
 

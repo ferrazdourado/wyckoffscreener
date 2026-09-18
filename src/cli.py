@@ -449,9 +449,8 @@ def _varrer_universos(args, config, now, watchlist=None) -> list:
 
 def cmd_analyze(args) -> int:
     """Mesma leitura do relatório, no terminal, com os números de cada regra."""
-    from .analysis import analyze_all
-
     from . import pnf
+    from .analysis import analyze_all
 
     config, watchlist = _load(args)
     with Cache(config.require("data.cache_path")) as cache:
@@ -697,7 +696,7 @@ def cmd_dashboard(args) -> int:
     import shutil
     import subprocess
 
-    config, _ = _load(args)          # falha cedo se config/watchlist estiverem quebrados
+    _load(args)                      # falha cedo se config/watchlist estiverem quebrados
     script = Path(__file__).resolve().parent / "dashboard.py"
     executavel = shutil.which("streamlit")
     comando = [executavel] if executavel else [sys.executable, "-m", "streamlit"]
@@ -747,7 +746,7 @@ def cmd_sources(args) -> int:
     """
     from .sources import compare_sources
 
-    config, watchlist = _load(args)
+    config, _ = _load(args)
     semanas = args.weeks or int(config.require("data.history_weeks"))
     if args.source == args.against:
         print("as duas fontes são a mesma; informe --against diferente de --source", file=sys.stderr)

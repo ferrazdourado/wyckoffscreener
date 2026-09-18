@@ -22,9 +22,8 @@ from typing import Any
 import pandas as pd
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from . import charts
+from . import charts, pnf
 from .alerts import collect_alerts, levels_configured, suggest_invalidation
-from . import pnf
 from .analysis import analyze_all, week_tag
 from .config import Config
 from .phases import INDEFINIDO

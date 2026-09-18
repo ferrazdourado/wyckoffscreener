@@ -56,7 +56,7 @@ class AbsoluteScale(BoxScale):
     box: float
 
     def index(self, price: float) -> int:
-        return int(math.floor(price / self.box))
+        return math.floor(price / self.box)
 
     def price(self, index: int) -> float:
         return index * self.box
@@ -87,7 +87,7 @@ class PercentScale(BoxScale):
     def index(self, price: float) -> int:
         if price <= 0:
             raise ValueError(f"preço não positivo em escala percentual: {price}")
-        return int(math.floor(math.log(price) / math.log(self.ratio)))
+        return math.floor(math.log(price) / math.log(self.ratio))
 
     def price(self, index: int) -> float:
         return float(self.ratio**index)
@@ -217,10 +217,10 @@ class CauseCount:
             f"colunas do range cruzando a linha: {self.columns}",
             f"largura do box na linha: {self.box_size:.2f} ({self.scale})",
             f"reversão: {self.reversal} boxes",
-            f"projeção: {self.columns} colunas × {self.reversal} = {self.boxes} boxes "
-            f"{'acima' if self.direction == 'alta' else 'abaixo'} da linha",
-            f"alvo = {self.count_line:.2f} percorrendo {self.boxes} boxes na grade "
-            f"= {self.target:.2f}",
+            (f"projeção: {self.columns} colunas × {self.reversal} = {self.boxes} boxes "
+             f"{'acima' if self.direction == 'alta' else 'abaixo'} da linha"),
+            (f"alvo = {self.count_line:.2f} percorrendo {self.boxes} boxes na grade "
+             f"= {self.target:.2f}"),
         ]
 
 

@@ -389,7 +389,7 @@ def check_universe(
     for symbol in universe.tickers:
         try:
             bars = provider.weekly_bars(symbol, weeks)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 — um ticker ruim não derruba a varredura
             mortos.append((symbol, str(exc)))
             continue
         if bars is None or bars.empty:

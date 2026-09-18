@@ -11,6 +11,7 @@ from __future__ import annotations
 import datetime as dt
 import sqlite3
 from pathlib import Path
+from typing import Self
 
 import pandas as pd
 
@@ -84,7 +85,7 @@ class Cache:
     def close(self) -> None:
         self.conn.close()
 
-    def __enter__(self) -> "Cache":
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(self, *exc) -> None:

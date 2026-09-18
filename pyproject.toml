@@ -40,7 +40,8 @@ testpaths = ["tests"]
 module = ["pandas", "pandas.*", "yaml", "yfinance", "mplfinance", "weasyprint"]
 ignore_missing_imports = true
 
-# O código trabalha em hora local ingênua (dt.datetime.now()); os testes
-# injetam `now` no mesmo formato para exercitar o caminho de produção.
-[tool.ruff.lint.per-file-ignores]
-"tests/**" = ["DTZ001"]
+# O código trabalha em hora local ingênua (dt.datetime.now(), date.today()) de
+# propósito; os testes injetam `now` no mesmo formato. O fuso só entra no
+# provider, ao decidir se o candle da semana já fechou.
+[tool.ruff.lint]
+ignore = ["DTZ001", "DTZ005", "DTZ011"]
