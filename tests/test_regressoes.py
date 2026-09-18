@@ -114,6 +114,15 @@ def test_benchmark_conhecido_continua_correto():
         {"tickers": [{"symbol": "PETR4.SA", "market": "b3"}]})) == "b3"
 
 
+def test_simbolo_fora_da_watchlist_usa_o_mesmo_palpite_da_fabrica():
+    # Havia dois mapas índice -> mercado; o do pipeline não tinha ^IDIV nem
+    # olhava o sufixo, e um .SA fora da watchlist fechava a semana em NY.
+    wl = parse_watchlist({"tickers": [{"symbol": "BAC", "market": "us"}]})
+    assert _market_of("^IDIV", wl) == "b3"
+    assert _market_of("VALE3.SA", wl) == "b3"
+    assert _market_of("^DJI", wl) == "us"
+
+
 # --- 5. nome do CSV vinha do dia da rodada, não da semana dos dados ---
 
 def test_etiqueta_do_csv_vem_da_semana_dos_dados():

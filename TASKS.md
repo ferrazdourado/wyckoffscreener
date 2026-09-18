@@ -52,7 +52,7 @@ backtest causal, que é a justificativa que `events.py` dá para a mesma extraç
 ## T7 — dois mapas divergentes de índice -> mercado
 `pipeline.BENCHMARK_MARKETS` e `factory.B3_INDEXES` guardam conhecimento
 duplicado e discordante. Unificar num lugar só.
-- [ ] feito
+- [x] feito — `BENCHMARK_MARKETS` saiu; `_market_of` cai em `factory.market_of_symbol` quando a watchlist não diz. De quebra, um `.SA` fora da watchlist deixou de fechar a semana no fuso de NY. Teste de regressão novo.
 
 ## T8 — dois freios independentes em `universe --check`
 `--pause` (0,3s) dorme além do `min_interval` (0,5s) do `ThrottledProvider`.

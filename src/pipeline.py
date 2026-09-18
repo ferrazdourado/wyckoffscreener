@@ -15,6 +15,7 @@ import pandas as pd
 
 from .config import Config
 from .data.cache import Cache
+from .data.factory import market_of_symbol
 from .data.provider import (
     DataProvider,
     FetchError,
@@ -24,8 +25,6 @@ from .data.provider import (
 )
 from .metrics import compute_metrics, latest_row
 from .watchlist import Watchlist
-
-BENCHMARK_MARKETS = {"^BVSP": "b3", "^GSPC": "us", "^IXIC": "us", "^DJI": "us"}
 
 
 @dataclass
@@ -60,8 +59,9 @@ def _market_of(symbol: str, watchlist: Watchlist) -> str:
     """Mercado do símbolo, para saber em que fuso a semana fecha.
 
     Para um índice, herda o mercado dos papéis que o usam como referência —
-    assim um índice B3 fora do mapa fixo (^IBXX, ^IDIV) não acaba com horário
-    de Nova York.
+    assim um índice B3 que o palpite não conhece não acaba com horário de Nova
+    York. Sem ninguém que diga, vale o palpite da fábrica de fontes, que é o
+    único mapa de sufixo/índice -> mercado do sistema.
     """
     item = watchlist.get(symbol)
     if item is not None:
@@ -69,7 +69,7 @@ def _market_of(symbol: str, watchlist: Watchlist) -> str:
     for candidate in watchlist:
         if candidate.benchmark == symbol:
             return candidate.market
-    return BENCHMARK_MARKETS.get(symbol, "us")
+    return market_of_symbol(symbol)
 
 
 def mark_partial(bars: pd.DataFrame, hours: MarketHours, now: dt.datetime | None = None) -> pd.DataFrame:
