@@ -3,7 +3,6 @@ conferir na cabeça. Nenhum teste toca a rede."""
 
 from __future__ import annotations
 
-import datetime as dt
 
 import pandas as pd
 import pytest

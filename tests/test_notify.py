@@ -7,9 +7,7 @@ import pytest
 
 from src.notify import (
     EmailNotifier,
-    Message,
     NotifyError,
-    TelegramNotifier,
     build_message,
     build_notifier,
     notify,

@@ -1,6 +1,5 @@
 """Montagem da leitura por papel — o contrato que o relatório consome."""
 
-import pandas as pd
 
 from src.analysis import analyze, analyze_all, week_tag
 from src.watchlist import ManualRange, WatchItem, Watchlist

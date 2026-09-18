@@ -1,6 +1,5 @@
 """CLI dos itens P2: `sources`, `pdf` e `dashboard`. Sem rede e sem navegador."""
 
-import json
 
 import pandas as pd
 import pytest

@@ -4,8 +4,7 @@ import datetime as dt
 
 import pytest
 
-from src.analysis import analyze
-from src.report import DISCLAIMER, build_model, generate, render
+from src.report import DISCLAIMER, build_model, generate
 from src.watchlist import CalendarEvent, Invalidation, WatchItem, Watchlist
 from tests.conftest import ranged_bars, set_bar, with_metrics
 

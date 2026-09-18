@@ -1,6 +1,5 @@
 """R10 — contagem de causa por Ponto & Figura."""
 
-import math
 
 import pandas as pd
 import pytest
@@ -15,7 +14,7 @@ from src.pnf import (
     widest_row,
 )
 from src.ranges import find_ranges
-from tests.conftest import make_bars, ranged_bars, set_bar, with_metrics
+from tests.conftest import make_bars, ranged_bars, with_metrics
 
 
 # --------------------------- grades ---------------------------

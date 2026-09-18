@@ -8,7 +8,6 @@ o que dispara (ou não) é exatamente o que o teste mexeu.
 sobram duas barras para a janela de recuperação do spring.
 """
 
-import pandas as pd
 import pytest
 
 from src.events import (

@@ -1,6 +1,5 @@
 """CLI da Fase 2: `wyckoff report` e `wyckoff analyze`, sem rede."""
 
-import datetime as dt
 import pathlib
 
 import pandas as pd

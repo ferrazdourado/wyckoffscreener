@@ -3,7 +3,6 @@
 import math
 
 import numpy as np
-import pandas as pd
 import pytest
 
 from src.backtest import (
@@ -17,7 +16,7 @@ from src.backtest import (
     run,
     summarize,
 )
-from tests.conftest import make_bars, ranged_bars, set_bar, with_metrics
+from tests.conftest import ranged_bars, set_bar, with_metrics
 from tests.test_events import sos_bar
 
 

@@ -2,7 +2,6 @@
 
 import datetime as dt
 
-import pandas as pd
 import pytest
 
 from src.alerts import (
