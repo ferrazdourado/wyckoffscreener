@@ -37,6 +37,7 @@ tickers:
     notes: "Invalidação: resistência rompida do range 36,26–42,17 (Fase E): invalida o rompimento. Definida em 12/09/2026 a partir do range detectado."
   - symbol: EMBJ3.SA
     market: b3
+    invalidation: {price: 88.13, direction: below}
     notes: "Verificar continuidade da série — mudança de ticker em 2025 (questão aberta na spec §8)."
   - symbol: PRIO3.SA
     market: b3
