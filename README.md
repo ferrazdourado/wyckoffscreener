@@ -55,7 +55,7 @@ wyckoff dashboard           # dashboard local sobre o mesmo SQLite     (P2)
 wyckoff sources PETR4.SA    # põe duas fontes lado a lado no mesmo papel (P2)
 ```
 
-Quase todo comando aceita `--offline` (usa só o cache, sem rede). É o que se
+`report` e `screen` aceitam `--offline` (usam só o cache, sem rede). É o que se
 usa para **reler o relatório sem varrer tudo de novo**: `wyckoff report --screen
 --offline` refaz o documento inteiro, com as duas seções de candidatos, em 25 s
 e sem tocar na rede. Sem `--offline` a coleta também é pulada se já houve fetch
@@ -391,8 +391,8 @@ universo) limita o que entra no documento. A primeira versão imprimia
 `candidates|length`, ou seja o número já cortado — em 16/09/2026 o relatório
 dizia "25 em Fase C/D" numa semana com **142** candidatos americanos. A frase
 lia como censo e era teto, e escondia justamente o que diz se 25 aperta ou
-folga. Agora sai "25 de 142", e o terminal anuncia o total antes de avisar que
-está mostrando os primeiros.
+folga. Agora sai "25 de N", com N contado antes do corte, e o terminal anuncia
+o total antes de avisar que está mostrando os primeiros.
 
 **Piso de liquidez.** O universo amplo tem papel que negocia quase nada, e a
 leitura Wyckoff de um candle semanal formado por três negócios é ruído com nome
@@ -484,13 +484,14 @@ nova mínima do range* vira spring. O calibre `min_support_touches` confirma:
 
 | toques exigidos | n (4s) | mediana 4s | acerto 4s | acerto 13s | mediana 26s |
 |---:|---:|---:|---:|---:|---:|
-| 1 (default, regra da spec) | 50 | −1,1% | 44% | 66% | +14,3% |
-| 2 | 43 | +0,4% | 51% | 70% | +14,3% |
+| 1 (`DEFAULTS`, regra da spec) | 50 | −1,1% | 44% | 66% | +14,3% |
+| 2 (`config.yaml` desde 12/09) | 43 | +0,4% | 51% | 70% | +14,3% |
 | 3 | 32 | +0,6% | 56% | **79%** | **+16,7%** |
 
 Exigir suporte já testado troca quantidade por qualidade, monotonicamente.
-**O default segue em 1 — a decisão de subir é sua**, e é o tipo de coisa que a
-spec §R11 diz explicitamente que o backtest existe para informar.
+**Com esta tabela o `config.yaml` subiu para 2 em 12/09/2026**; o `DEFAULTS` do
+código segue em 1, a regra literal da spec. É o tipo de decisão que a spec §R11
+diz explicitamente que o backtest existe para informar.
 
 **As regras de baixa não separam nada neste período.** SOW e upthrust acertam
 33% das vezes num mercado que subiu; o excesso contra o índice fica em torno de
@@ -623,7 +624,7 @@ src/
 .github/workflows/  semanal.yml — a rotina de sexta rodando no GitHub Actions
 templates/          report.md.j2 + report.html.j2
 universe.yaml       universos do screener: 371 ações da B3, 78 líquidas, 518 US, 31 US líquidas
-tests/              493 testes, sem rede
+tests/              suíte pytest, sem rede (`pytest -q` dá a contagem)
 ```
 
 ## Estado das fases

@@ -173,8 +173,8 @@ class ScreenResult:
     stale: int = 0               # descartados por fase instalada há tempo demais
     max_weeks_since_event: int = 0
     #: Quantos papéis passaram no filtro de fase E no piso de liquidez, ANTES
-    #: do corte do `top`. Sem ele o relatório dizia "25 em Fase C/D" numa semana
-    #: com 142: a frase lia como censo e era teto, e some justamente o que diria
+    #: do corte do `top`. Sem ele o relatório dizia "25 em Fase C/D" em 16/09/2026,
+    #: semana com 142: a frase lia como censo e era teto, e some justamente o que diria
     #: se 25 está apertado ou folgado.
     matched: int = 0
 

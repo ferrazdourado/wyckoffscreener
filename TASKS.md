@@ -36,7 +36,7 @@ rede) em vez de prometer coleta incremental que o `auto_adjust` impede.
 `min_support_touches` (subiu para 2 em 12/09) · "493 testes" (são 497) ·
 "quase todo comando aceita `--offline`" (só `report` e `screen`).
 O 142 também está fossilizado em `screener.py:171`.
-- [ ] feito
+- [x] feito — números que envelhecem trocados por forma ("25 de N", contagem via `pytest -q`); o 142 fica só como registro datado de 16/09.
 
 ## T5 — `min_resistance_touches` se diz espelho do spring e não é
 `config.yaml:180` comenta "espelho do calibre do spring" com 1 contra os 2 do
