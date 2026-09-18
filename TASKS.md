@@ -60,7 +60,7 @@ duplicado e discordante. Unificar num lugar só.
 
 ## T9 — código de saída de `wyckoff fetch` depende de `--no-metrics`
 Com a flag, erro de coleta sai 1; sem ela, os mesmos erros saem 0.
-- [ ] feito
+- [x] feito — alinhado ao caminho com métricas e ao `report`: papel com erro é aviso (R2), sai 1 só quando nada foi coletado. Teste novo cobre os dois casos.
 
 ## T10 — superfície morta e miudezas
 `YFinanceProvider(session=)` guardado e nunca lido · imports não usados em

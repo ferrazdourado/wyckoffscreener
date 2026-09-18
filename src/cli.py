@@ -162,7 +162,9 @@ def cmd_fetch(args) -> int:
             note = f"  {status.message}" if status.message else ""
             print(f"  {mark} {status.symbol:<10} {status.rows:>4} semanas{note}")
         if args.no_metrics:
-            return 1 if report.errors else 0
+            # Mesmo contrato do caminho com métricas e do `report`: papel que
+            # falha vira aviso (R2); só sai 1 quando nada foi coletado.
+            return 0 if report.ok else 1
         return _metrics_stage(config, watchlist, cache, now, extra_problems=report.errors)
 
 

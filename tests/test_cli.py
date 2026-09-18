@@ -5,6 +5,7 @@ import shutil
 import pytest
 
 from src.cli import main
+from src.pipeline import FetchReport, SymbolStatus
 from src.watchlist import load_watchlist
 
 
@@ -59,3 +60,15 @@ def test_metrics_sem_cache_falha_com_orientacao(projeto, capsys):
 def test_show_de_ticker_sem_dados(projeto, capsys):
     assert run("show", "PETR4.SA") == 1
     assert "sem métricas" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("statuses,codigo", [
+    ([SymbolStatus("BAC", "ok", 120), SymbolStatus("XYZ", "error", 0, "sem dados")], 0),
+    ([SymbolStatus("XYZ", "error", 0, "sem dados")], 1),
+])
+def test_fetch_no_metrics_so_falha_quando_nada_foi_coletado(projeto, monkeypatch, statuses, codigo):
+    # Com --no-metrics, um papel com erro saía 1; sem a flag, os mesmos erros
+    # saíam 0. Falha de um papel não aborta (R2) nos dois caminhos.
+    monkeypatch.setattr("src.cli.build_provider", lambda *a, **k: None)
+    monkeypatch.setattr("src.cli.fetch_all", lambda *a, **k: FetchReport(list(statuses)))
+    assert run("fetch", "--no-metrics") == codigo
