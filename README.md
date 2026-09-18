@@ -518,6 +518,48 @@ só reduz a contagem. Com 3 toques o sinal empata com a base, sem superá-la.
 B3 e EUA separados dizem o mesmo. Por isso o upthrust segue com 1 toque, a
 regra literal. Subir o calibre por simetria com o spring não compraria nada.
 
+## Lista curta por momentum (18/09/2026)
+
+O objetivo de uso mudou de "ler Wyckoff na watchlist" para "receber, toda
+sexta, poucos papéis que valham abrir no gráfico e na análise fundamentalista".
+Antes de escolher o critério, a pergunta foi medida.
+
+**O que foi medido.** Dez anos de candles semanais (set/2016–set/2026) dos
+universos completos, 890 papéis, fora do cache do projeto. Toda semana, os 10
+primeiros de cada indicador, comprados na abertura da semana seguinte, contra a
+média dos papéis líquidos da mesma semana, 13 semanas à frente. `t` descontado
+pela sobreposição das janelas; acima de ~2 deixa de parecer sorte.
+
+| top 10 da semana por… | EUA¹ | B3 |
+|---|---:|---:|
+| momentum 12 meses sem o último | +2,7% (t 1,4) | +1,8% (t 1,1) |
+| momentum 6 meses | +3,2% (t 1,7) | +1,2% (t 0,7) |
+| distância acima da MM30 | +2,7% (t 1,5) | +1,0% (t 0,5) |
+| pico de volume da semana | −0,1% (t −0,2) | −1,8% (t −1,5) |
+| mais abaixo da MM30 / RSI baixo | +1,4% / 0,0% | **−6,9% / −5,8%** (t ≈ −3) |
+
+¹ Só a partir da data em que o papel entrou no S&P 500. Sem essa correção o
+momentum americano dava +9,5% — dois terços eram papel que entrou no índice
+*porque* subiu. A B3 tem o mesmo viés (lista de hoje) e não foi corrigida:
+os números de lá tendem a ser otimistas.
+
+**As regras Wyckoff no universo inteiro** (backtest causal, 724 papéis
+líquidos, 2024–2026, 13 semanas): SOS −3,6% contra o índice e 40% de acerto,
+contra −1,9% de uma semana qualquer; spring −1,4%, teste −1,6%, LPS −4,4%. O
+"+11,9 p.p." do SOS na tabela de 07/09 vinha de 16 observações da watchlist.
+
+**Decisão.** `screener.momentum` (12 meses sem o último, top 10) vai para o
+relatório com `--screen` e para o Telegram logo depois das invalidações. Não é
+o critério que funciona; é o menos ruim dos 15 testados, e nenhum passou de
+t ≈ 1,7. Fica até aparecer um conjunto de indicadores que meça melhor — e a
+medição tem de ser a mesma: causal, contra a média dos líquidos, com a
+composição do índice corrigida.
+
+Papel da watchlist entra na lista, marcado (★ no Telegram): a lista é "os 10
+mais fortes do mercado", ao contrário dos candidatos Wyckoff, que são "o que
+você ainda não acompanha". Papel cuja última semana fechada é anterior à do
+resto do universo fica fora e é contado.
+
 ## O que as duas fontes dizem do mesmo papel (08/09/2026, 120 semanas)
 
 A §8 pergunta se o Yahoo entrega bem proventos e splits de papel brasileiro e
