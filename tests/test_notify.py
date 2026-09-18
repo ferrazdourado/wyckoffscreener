@@ -45,7 +45,7 @@ def telegram_config(config, monkeypatch):
 
 def test_resumo_traz_semana_fase_e_volume(config):
     m = modelo(config)
-    msg = build_message(m, config)
+    msg = build_message(m)
     assert m["tag"] in msg.subject                     # a etiqueta vem dos dados
     assert msg.body.startswith(f"Wyckoff — semana {m['tag']}")
     assert "PETR4.SA" in msg.body
@@ -55,7 +55,7 @@ def test_resumo_traz_semana_fase_e_volume(config):
 def test_invalidacao_vem_antes_de_tudo(config):
     """Quem lê no celular na sexta precisa ver o que exige ação primeiro."""
     m = modelo(config, invalidation=Invalidation(price=11.5, direction="below"))
-    corpo = build_message(m, config).body
+    corpo = build_message(m).body
     assert corpo.index("INVALIDAÇÕES") < corpo.index("EVENTOS DA SEMANA")
     assert corpo.index("INVALIDAÇÕES") < corpo.index("WATCHLIST")
     assert "⚠ PETR4.SA" in corpo      # marcada também na tabela
@@ -64,16 +64,16 @@ def test_invalidacao_vem_antes_de_tudo(config):
 def test_invalidacao_nova_ganha_marca(config):
     bars = set_bar(ranged_bars(25), 24, low=9.5, close=10.6, volume=80.0)
     m = modelo(config, bars=bars, invalidation=Invalidation(price=10.8, direction="below"))
-    assert "[NOVO]" in build_message(m, config).body
+    assert "[NOVO]" in build_message(m).body
 
 
 def test_semana_sem_evento_diz_isso(config):
-    assert "EVENTOS DA SEMANA: nenhum" in build_message(modelo(config), config).body
+    assert "EVENTOS DA SEMANA: nenhum" in build_message(modelo(config)).body
 
 
 def test_evento_da_semana_aparece(config):
     bars = set_bar(ranged_bars(25), 24, low=9.5, volume=80.0)
-    corpo = build_message(modelo(config, bars=bars), config).body
+    corpo = build_message(modelo(config, bars=bars)).body
     assert "Spring" in corpo
 
 
@@ -85,10 +85,10 @@ def test_truncamento_corta_em_linha_inteira(config):
     wl = Watchlist(items=[item(s) for s in simbolos])
     m = build_model(wl, {s: df for s in simbolos}, config, AGORA)
 
-    completo = build_message(m, config).body
+    completo = build_message(m).body
     assert len(completo) > 300 and "truncado" not in completo
 
-    corpo = build_message(m, config, max_chars=300).body
+    corpo = build_message(m, max_chars=300).body
     assert len(corpo) <= 300
     assert "truncado" in corpo
     # a última linha de conteúdo antes do aviso é uma linha de papel inteira
@@ -104,7 +104,7 @@ def test_erros_de_coleta_entram_no_resumo(config):
     wl = Watchlist(items=[item(), item("XPTO.SA")])
     m = build_model(wl, {"PETR4.SA": df}, config, AGORA,
                     fetch_errors=[SymbolStatus("XPTO.SA", "error", 0, "não existe")])
-    assert "ERROS DE COLETA (1): XPTO.SA" in build_message(m, config).body
+    assert "ERROS DE COLETA (1): XPTO.SA" in build_message(m).body
 
 
 # --------------------------- segredos ---------------------------

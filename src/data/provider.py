@@ -136,9 +136,6 @@ class DataProvider(ABC):
 
 
 class YFinanceProvider(DataProvider):
-    def __init__(self, session=None):
-        self._session = session
-
     def daily_bars(self, symbol: str, weeks: int) -> pd.DataFrame:
         import yfinance as yf
 

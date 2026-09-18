@@ -34,7 +34,7 @@ engoliria justamente o sinal mais importante da semana.
 from __future__ import annotations
 
 import datetime as dt
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import pandas as pd
 

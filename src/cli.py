@@ -515,7 +515,6 @@ def _notificar(model, config, attachment=None) -> int:
 
 def cmd_notify(args) -> int:
     """R9: monta o relatório da semana em memória e manda o resumo."""
-    from .analysis import analyze_all
     from .report import build_model
 
     config, watchlist = _load(args)
@@ -533,7 +532,7 @@ def cmd_notify(args) -> int:
     if args.dry_run:
         from .notify import build_message
 
-        msg = build_message(model, config, int(config.get("notify.max_chars", 4096)))
+        msg = build_message(model, int(config.get("notify.max_chars", 4096)))
         print(f"--- assunto ---\n{msg.subject}\n--- corpo ({len(msg.body)} caracteres) ---")
         print(msg.body)
         return 0
@@ -542,8 +541,7 @@ def cmd_notify(args) -> int:
 
 def cmd_screen(args) -> int:
     """R12: varre um universo amplo e ranqueia quem está em Fase C/D."""
-    from .analysis import week_tag
-    from .screener import UniverseError, export, load_universes, refresh, screen, to_frame
+    from .screener import export, load_universes, refresh, screen, to_frame
 
     config, _ = _load(args)
     caminho = args.universe_file or config.get("screener.universe_path", "universe.yaml")
@@ -750,14 +748,14 @@ def cmd_sources(args) -> int:
 
     config, watchlist = _load(args)
     semanas = args.weeks or int(config.require("data.history_weeks"))
+    if args.source == args.against:
+        print("as duas fontes são a mesma; informe --against diferente de --source", file=sys.stderr)
+        return 2
     try:
         esquerda = (args.source, build_single(args.source, config))
         direita = (args.against, build_single(args.against, config))
     except ProviderError as exc:
         print(f"\n{exc}", file=sys.stderr)
-        return 2
-    if args.source == args.against:
-        print("as duas fontes são a mesma; informe --against diferente de --source", file=sys.stderr)
         return 2
 
     print(f"Baixando {args.ticker} ({semanas} semanas) em {args.source} e {args.against}...")

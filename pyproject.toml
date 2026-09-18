@@ -13,7 +13,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0"]
+dev = ["pytest>=8.0", "ruff", "mypy"]
 # P2 — extras opcionais. Nada aqui é necessário para a rotina semanal:
 #   dashboard  `wyckoff dashboard` (Streamlit lendo o mesmo SQLite)
 #   pdf        motor alternativo de PDF, para máquina sem Chrome/Chromium

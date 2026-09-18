@@ -5,7 +5,7 @@ brasileiros em proventos e splits, com brapi.dev como fallback a definir. Para
 responder isso é preciso ter as duas fontes rodando lado a lado — é o que este
 módulo e o comando `wyckoff sources` fazem.
 
-Três coisas que a fonte impõe e o código precisa absorver:
+Quatro coisas que a fonte impõe e o código precisa absorver:
 
 1. **Só B3.** Não há papel americano aqui; o roteamento (`factory.py`) manda os
    tickers `us` para o yfinance. O sufixo `.SA`, que é convenção do Yahoo, é
@@ -39,7 +39,6 @@ ajuste e tratamento de erro sem tocar a rede.
 from __future__ import annotations
 
 import json
-import os
 import urllib.error
 import urllib.parse
 import urllib.request

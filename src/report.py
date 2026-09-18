@@ -24,7 +24,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from . import charts
 from .alerts import collect_alerts, levels_configured, suggest_invalidation
 from . import pnf
-from .analysis import TickerAnalysis, analyze_all, week_tag
+from .analysis import analyze_all, week_tag
 from .config import Config
 from .phases import INDEFINIDO
 

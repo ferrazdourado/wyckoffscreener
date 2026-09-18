@@ -69,7 +69,7 @@ Com a flag, erro de coleta sai 1; sem ela, os mesmos erros saem 0.
 itens e lista quatro · `ruff`/`mypy` exigidos pelo CLAUDE.md e ausentes do
 `[dev]` · `exports/screen_top{100,150,200}_*.csv` de universos extintos ·
 `cmd_sources` monta os dois providers antes da validação barata.
-- [ ] feito
+- [x] feito — tudo, menos os três CSVs: remoção barrada pelo modo automático (arquivos fora do git), fica para apagar à mão. `config` do weasyprint fica pela assinatura de `ENGINES`, com comentário; o de `build_message` saiu. Sobram 15 imports mortos em `tests/`, fora do escopo listado.
 
 ---
 

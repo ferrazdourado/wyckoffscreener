@@ -176,6 +176,8 @@ def render_with_chrome(html_path: Path, pdf_path: Path, config: Config) -> None:
 
 
 def render_with_weasyprint(html_path: Path, pdf_path: Path, config: Config) -> None:
+    # `config` fica pela assinatura comum de ENGINES; o weasyprint não tem o
+    # que configurar (sem binário, sem timeout: roda no mesmo processo).
     try:
         from weasyprint import HTML
     except ImportError as exc:

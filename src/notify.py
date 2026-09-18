@@ -108,7 +108,7 @@ def _secret(config: Config, path: str, what: str) -> str:
     return value
 
 
-def build_message(model: dict, config: Config, max_chars: int = TELEGRAM_MAX) -> Message:
+def build_message(model: dict, max_chars: int = TELEGRAM_MAX) -> Message:
     """Resumo compacto do relatório: o que exige ação primeiro.
 
     A ordem é a mesma do relatório e pelo mesmo motivo — quem lê no celular na
@@ -303,7 +303,7 @@ def notify(model: dict, config: Config, send_fn=None, attachment=None) -> str:
     """Monta o resumo e envia. Erros viram NotifyError com instrução acionável."""
     notifier = build_notifier(config, send_fn=send_fn)
     limite = int(config.get("notify.max_chars", TELEGRAM_MAX))
-    message = build_message(model, config, max_chars=limite)
+    message = build_message(model, max_chars=limite)
     anexo = resolve_attachment(config, model, attachment)
     if anexo is not None:
         message = replace(message, attachment=anexo)
