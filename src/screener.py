@@ -374,21 +374,18 @@ def export(result: ScreenResult, config: Config, tag: str) -> Path:
     return path
 
 def check_universe(
-    universe: Universe, provider: DataProvider, weeks: int = 4, pause: float = 0.0
+    universe: Universe, provider: DataProvider, weeks: int = 4
 ) -> tuple[list[str], list[tuple[str, str]]]:
     """Confere quais tickers do universo ainda respondem na fonte.
 
     Existe porque ticker de bolsa morre e uma lista estática apodrece calada: o
     screener continua rodando, só que varrendo menos papéis do que você pensa.
-    Devolve (vivos, [(morto, motivo)]) — quem chama decide o que fazer.
+    Devolve (vivos, [(morto, motivo)]) — quem chama decide o que fazer. O ritmo
+    das chamadas é do provider (`data.fetch.min_interval`), não daqui.
     """
-    import time
-
     vivos: list[str] = []
     mortos: list[tuple[str, str]] = []
     for symbol in universe.tickers:
-        if pause:
-            time.sleep(pause)
         try:
             bars = provider.weekly_bars(symbol, weeks)
         except Exception as exc:

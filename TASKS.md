@@ -56,7 +56,7 @@ duplicado e discordante. Unificar num lugar só.
 
 ## T8 — dois freios independentes em `universe --check`
 `--pause` (0,3s) dorme além do `min_interval` (0,5s) do `ThrottledProvider`.
-- [ ] feito
+- [x] feito — `--pause` saiu da CLI e de `check_universe`; o ritmo é só o `data.fetch.min_interval`, o mesmo de `fetch` e `screen`.
 
 ## T9 — código de saída de `wyckoff fetch` depende de `--no-metrics`
 Com a flag, erro de coleta sai 1; sem ela, os mesmos erros saem 0.

@@ -646,7 +646,7 @@ def cmd_universe(args) -> int:
     for nome in nomes:
         u = universos[nome]
         print(f"\nConferindo {nome} ({len(u.tickers)} papéis) contra a fonte...")
-        vivos, mortos = check_universe(u, build_provider(config, market=u.market), pause=args.pause)
+        vivos, mortos = check_universe(u, build_provider(config, market=u.market))
         total_mortos += len(mortos)
         print(f"  {len(vivos)} respondem, {len(mortos)} não:")
         for symbol, motivo in mortos:
@@ -926,8 +926,6 @@ def build_parser() -> argparse.ArgumentParser:
     p_universe.add_argument("--check", action="store_true",
                             help="bate cada ticker na fonte e aponta os que morreram")
     p_universe.add_argument("--universe-file", help="outro arquivo de universos")
-    p_universe.add_argument("--pause", type=float, default=0.3,
-                            help="segundos entre chamadas, para não estrangular a fonte")
     p_universe.set_defaults(func=cmd_universe)
 
     p_bt = sub.add_parser("backtest", help="mede o que vem depois de cada regra (R11 — calibragem)")
