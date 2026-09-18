@@ -24,6 +24,7 @@ from __future__ import annotations
 import datetime as dt
 from dataclasses import dataclass
 
+import numpy as np
 import pandas as pd
 
 from .config import Config
@@ -83,6 +84,14 @@ def close_dispersion(closes: pd.Series) -> float:
     return float(closes.max() - closes.min()) / mean
 
 
+def _dispersion(closes: np.ndarray) -> float:
+    """`close_dispersion` sobre array, ignorando NaN como o pandas ignora."""
+    mean = float(np.nanmean(closes))
+    if mean <= 0:
+        return float("inf")
+    return float(np.nanmax(closes) - np.nanmin(closes)) / mean
+
+
 def find_ranges(bars: pd.DataFrame, config: Config) -> list[TradingRange]:
     """Todos os ranges maximais e não sobrepostos da série, em ordem cronológica.
 
@@ -97,17 +106,19 @@ def find_ranges(bars: pd.DataFrame, config: Config) -> list[TradingRange]:
     if min_weeks < 2:
         raise ValueError(f"ranges.min_weeks inválido: {min_weeks} (mínimo 2)")
 
-    n = len(bars)
+    # Roda uma vez por semana por papel no backtest causal: o laço lê o array,
+    # não `.iloc[]`, que monta uma Series por janela testada.
     closes = bars["close"].to_numpy(dtype=float)
+    n = len(closes)
     out: list[TradingRange] = []
     start = 0
     while start + min_weeks <= n:
         end = start + min_weeks - 1
-        if close_dispersion(bars["close"].iloc[start : end + 1]) > max_disp:
+        if _dispersion(closes[start : end + 1]) > max_disp:
             start += 1
             continue
         # Janela mínima cabe: estende enquanto continuar cabendo.
-        while end + 1 < n and close_dispersion(bars["close"].iloc[start : end + 2]) <= max_disp:
+        while end + 1 < n and _dispersion(closes[start : end + 2]) <= max_disp:
             end += 1
         out.append(_range_from_slice(bars, start, end, "detected"))
         start = end + 1

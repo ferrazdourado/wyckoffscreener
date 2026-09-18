@@ -47,7 +47,7 @@ spring. Subir junto ou corrigir o comentário.
 `ranges.py:101` extrai `closes` para numpy e nunca usa; o laço segue em
 `.iloc[]`. Vale o conserto: `find_ranges` roda uma vez por semana por papel no
 backtest causal, que é a justificativa que `events.py` dá para a mesma extração.
-- [ ] feito
+- [x] feito — laço lê o array; medido nos 890 papéis do cache: 3,70s -> 1,43s, saída idêntica à anterior em 1190 séries (reais + 300 sintéticas).
 
 ## T7 — dois mapas divergentes de índice -> mercado
 `pipeline.BENCHMARK_MARKETS` e `factory.B3_INDEXES` guardam conhecimento
