@@ -33,3 +33,9 @@ include = ["src*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+# Bibliotecas sem tipos publicados no ambiente. pandas-stubs fica de fora de
+# propósito: tipar o pandas é outra tarefa, maior que esta.
+[[tool.mypy.overrides]]
+module = ["pandas", "pandas.*", "yaml", "yfinance", "mplfinance", "weasyprint"]
+ignore_missing_imports = true

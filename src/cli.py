@@ -35,7 +35,7 @@ from .env import load_env
 from .metrics import latest_row
 from .pipeline import build_metrics, export_csv, fetch_all
 from .screener import UniverseError
-from .watchlist import WatchlistError, load_watchlist
+from .watchlist import Watchlist, WatchlistError, load_watchlist
 
 
 def summary_columns(config: Config) -> list[tuple[str, str, int]]:
@@ -92,7 +92,7 @@ def _summary_table(metrics: dict[str, pd.DataFrame], watchlist, config: Config) 
     return _table(rows, headers)
 
 
-def _load(args) -> tuple[Config, object]:
+def _load(args) -> tuple[Config, Watchlist]:
     return load_config(args.config), load_watchlist(args.watchlist)
 
 
@@ -210,6 +210,7 @@ def cmd_show(args) -> int:
     cols += ["ex_dividend", "ex_split", "is_partial"]
     cols = [c for c in cols if c in df.columns]
     item = watchlist.get(symbol)
+    assert item is not None   # build_metrics só devolve papéis da watchlist
     print(f"{symbol} ({item.market}) vs {item.benchmark} — últimas {len(df)} semanas\n")
     with pd.option_context("display.width", 250, "display.max_columns", 50):
         print(df[cols].round(config.get("output.decimals", 3)).to_string())
@@ -314,7 +315,7 @@ def cmd_verify(args) -> int:
     n_actions = 0 if actions is None else len(actions)
     semanas_ex = int(metrics["ex_dividend"].sum() + metrics["ex_split"].sum())
     print(f"\nPROVENTOS/SPLITS na janela de {len(metrics)} semanas: {n_actions} (em {semanas_ex} semanas)")
-    if n_actions:
+    if actions is not None and n_actions:
         for _, a in actions.tail(5).iterrows():
             print(f"  {a['date']}  {a['kind']:<9} {a['value']}")
         if n_actions > 5:

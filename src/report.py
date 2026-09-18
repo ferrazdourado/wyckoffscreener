@@ -17,6 +17,7 @@ from __future__ import annotations
 import datetime as dt
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -89,7 +90,7 @@ def build_model(
     invalidations, calendar = collect_alerts(watchlist, metrics, config, now.date())
     rs_cols = _rs_columns(config)
 
-    week_events = []
+    week_events: list[dict[str, Any]] = []
     for a in analyses:
         for ev in a.recent_events:
             week_events.append({"symbol": a.symbol, "event": ev, "analysis": a})

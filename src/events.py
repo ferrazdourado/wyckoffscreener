@@ -293,7 +293,7 @@ def detect_springs(bars: pd.DataFrame, ranges: list[TradingRange], config: Confi
             continue  # perfurou e não voltou: rompimento de suporte, não spring
 
         confirmed = recovered_at is not None
-        if confirmed:
+        if recovered_at is not None:
             atraso = recovered_at - i
             quando = "no próprio candle" if atraso == 0 else f"{atraso} semana(s) depois"
             checks.append(Check("fechamento de volta acima do suporte (semanas)", float(atraso),

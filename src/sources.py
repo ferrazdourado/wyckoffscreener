@@ -83,8 +83,7 @@ class Comparison:
             partes.append(f"{len(self.only_left)} pregão(ões) só em {self.left_name}")
         if self.only_right:
             partes.append(f"{len(self.only_right)} só em {self.right_name}")
-        if self.price_divergences:
-            pior = self.worst_price
+        if (pior := self.worst_price) is not None:
             partes.append(f"{len(self.price_divergences)} preço(s) divergente(s) "
                           f"(pior: {pior.diff_pct:+.2%} em {pior.date:%d/%m/%Y})")
         if self.volume_divergences:

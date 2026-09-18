@@ -71,6 +71,12 @@ itens e lista quatro · `ruff`/`mypy` exigidos pelo CLAUDE.md e ausentes do
 `cmd_sources` monta os dois providers antes da validação barata.
 - [x] feito — tudo, menos os três CSVs: remoção barrada pelo modo automático (arquivos fora do git), fica para apagar à mão. `config` do weasyprint fica pela assinatura de `ENGINES`, com comentário; o de `build_message` saiu. Sobram 15 imports mortos em `tests/`, fora do escopo listado.
 
+## T11 — `mypy src` com 54 erros
+O CLAUDE.md exige mypy e ele nunca rodou (não estava no `[dev]` até a T10).
+27 são biblioteca sem stubs; 19 vêm de `cli._load` tipar a watchlist como
+`object`; 8 espalhados.
+- [x] feito — `mypy src` limpo. Sem stubs: `ignore_missing_imports` para pandas, yaml, yfinance, mplfinance, weasyprint (pandas-stubs abriria outra frente). O resto era tipo frouxo (`object` onde havia `Watchlist`/`Event`) ou estreitamento de `None` que o código garantia sem dizer; nenhum defeito de comportamento.
+
 ---
 
 ## Fora da fila, decisão sua

@@ -30,6 +30,7 @@ from .analysis import TickerAnalysis, analyze
 from .config import Config
 from .data.cache import Cache
 from .data.provider import DataProvider
+from .events import Event
 from .metrics import compute_metrics
 from .pipeline import SymbolStatus, fetch_all, flag_ex_dates
 from .watchlist import MARKETS, WatchItem, Watchlist
@@ -131,12 +132,12 @@ class Candidate:
     analysis: TickerAnalysis
     #: Idade e identidade do evento que instalou a fase — o que filtra e ordena.
     weeks_since_event: int | None
-    last_event: object | None
+    last_event: Event | None
     liquidity: float = 0.0       # volume financeiro semanal típico
     #: Último evento do mesmo viés, que pode ser bem mais novo que a fase.
     #: Só informa; vai para o CSV para explicar divergências entre os dois.
     weeks_since_aligned: int | None = None
-    last_aligned: object | None = None
+    last_aligned: Event | None = None
 
     @property
     def symbol(self) -> str:
@@ -196,7 +197,7 @@ def weekly_liquidity(metrics: pd.DataFrame, weeks: int = 12) -> float:
     return float(financeiro.median()) if not financeiro.empty else 0.0
 
 
-def _phase_driver_age(analysis: TickerAnalysis) -> tuple[int | None, object | None]:
+def _phase_driver_age(analysis: TickerAnalysis) -> tuple[int | None, Event | None]:
     """Semanas desde o evento que INSTALOU (ou confirmou por último) a fase atual.
 
     É esta a idade que data a leitura, e não a do último evento qualquer do mesmo
@@ -218,7 +219,7 @@ def _phase_driver_age(analysis: TickerAnalysis) -> tuple[int | None, object | No
     return len(analysis.closed) - 1 - driver.index, driver
 
 
-def _last_aligned_event(analysis: TickerAnalysis) -> tuple[int | None, object | None]:
+def _last_aligned_event(analysis: TickerAnalysis) -> tuple[int | None, Event | None]:
     """Último evento do mesmo viés da fase — informativo, não filtra nem ordena.
 
     Alinhado ao viés porque um upthrust não diz nada sobre um candidato a

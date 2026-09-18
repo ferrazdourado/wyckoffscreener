@@ -222,7 +222,7 @@ def _parse_item(v: _Validator, index: int, raw: Any, defaults: dict) -> WatchIte
     if raw.get("range") is not None:
         manual_range = _parse_range(v, f"{where}.range", raw["range"])
 
-    calendar = ()
+    calendar: tuple[CalendarEvent, ...] = ()
     if raw.get("calendar") is not None:
         calendar = _parse_calendar(v, f"{where}.calendar", raw["calendar"])
 

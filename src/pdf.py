@@ -161,6 +161,7 @@ def render_with_chrome(html_path: Path, pdf_path: Path, config: Config) -> None:
                 if processo.poll() is not None:
                     if pdf_completo(pdf_path):
                         return
+                    assert processo.stderr is not None   # Popen com stderr=PIPE
                     erro = (processo.stderr.read() or b"").decode("utf-8", "replace").strip()
                     ultima = erro.splitlines()[-1] if erro else f"código {processo.returncode}"
                     raise PdfError(f"chrome: saiu sem escrever o PDF — {ultima}")
