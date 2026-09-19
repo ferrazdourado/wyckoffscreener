@@ -78,18 +78,19 @@ em **9,0 min**.
 
 ## Rodar na nuvem (GitHub Actions)
 
-`.github/workflows/semanal.yml` executa a rotina de sexta sem a máquina ligada.
+`.github/workflows/semanal.yml` executa a rotina semanal sem a máquina ligada.
 É um job em lote de ~9 min por semana, não um serviço: o cron do Actions cobre
 isso de graça (repo público: ilimitado; privado: ~40 min/mês dos 2.000 do tier
 gratuito). Por isso não há servidor a manter.
 
-- **Quando:** sexta, 22:30 UTC (19:30 BRT). Mais tarde que as 18h da spec de
-  propósito — a NYSE fecha 21:00 UTC no inverno americano, e 18h BRT pegaria o
-  candle semanal dos papéis US ainda aberto.
+- **Quando:** sábado, 11:45 UTC (8:45 BRT), para o resumo chegar por volta das
+  9h — pedido de 18/09/2026. Até então era sexta 22:30 UTC; o sábado tem a
+  vantagem de pegar os dois mercados fechados com folga (a NYSE fecha 21:00 UTC
+  no inverno americano). O cron do GitHub pode atrasar em horário carregado.
 - **O cache sobrevive entre as semanas** via `actions/cache`, com chave
   `wyckoff-sqlite-<ano-semana>` (a chave precisa mudar toda semana, senão o
   cache nunca é regravado) e `restore-keys` pegando o da semana anterior.
-  **Ele não torna a coleta incremental:** toda sexta as 120 semanas de cada
+  **Ele não torna a coleta incremental:** toda semana as 120 semanas de cada
   papel são rebaixadas inteiras (`pipeline.py`, `data.history_weeks`), porque
   com `auto_adjust=True` um provento reescreve a série toda e baixar só a ponta
   misturaria bases de ajuste. O cache serve para o relatório ainda ter história
@@ -683,7 +684,7 @@ src/
   dashboard.py      P2 — Streamlit sobre o mesmo cache e o mesmo modelo
   pipeline.py       orquestração; falha de um ticker não derruba o lote
   cli.py            argparse
-.github/workflows/  semanal.yml — a rotina de sexta rodando no GitHub Actions
+.github/workflows/  semanal.yml — a rotina semanal (sábado 8:45 BRT) no GitHub Actions
 templates/          report.md.j2 + report.html.j2
 universe.yaml       universos do screener: 371 ações da B3, 78 líquidas, 518 US, 31 US líquidas
 tests/              suíte pytest, sem rede (`pytest -q` dá a contagem)

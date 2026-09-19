@@ -1,4 +1,4 @@
-# Rotina de sexta-feira, na nuvem.
+# Rotina semanal (sábado de manhã), na nuvem.
 #
 # Por que existe: `wyckoff report --screen --pdf` é um job em lote de ~9 min por
 # semana, não um serviço. O cron do GitHub Actions cobre isso sem custo (repo
@@ -14,10 +14,13 @@ name: Relatório semanal
 
 on:
   schedule:
-    # 22:30 UTC de sexta = 19:30 BRT. Escolhido para cair depois do fechamento
-    # dos DOIS mercados no pior caso: B3 às 20:00 UTC e NYSE às 21:00 UTC
-    # (horário de inverno americano), com folga para o Yahoo consolidar a semana.
-    - cron: "30 22 * * 5"
+    # Sábado 11:45 UTC = 8:45 BRT (o Brasil não tem mais horário de verão).
+    # Pedido de 18/09/2026: o resumo chega no sábado às 9h, e o job leva ~10 min
+    # entre instalar, coletar os ~900 papéis e gerar o PDF. O cron do GitHub
+    # pode atrasar alguns minutos em horário carregado; nunca adianta.
+    # No sábado os dois mercados já fecharam a semana, com folga de sobra para
+    # o Yahoo consolidar o candle.
+    - cron: "45 11 * * 6"
   workflow_dispatch:
     inputs:
       screen:
@@ -56,7 +59,7 @@ jobs:
         run: pip install -e .
 
       # O cache guarda o SQLite entre as semanas. Ele NÃO torna a coleta
-      # incremental: toda sexta as 120 semanas de cada papel são rebaixadas
+      # incremental: toda semana as 120 semanas de cada papel são rebaixadas
       # inteiras, porque com `auto_adjust=True` um provento reescreve a série
       # toda e baixar só a ponta misturaria bases de ajuste. O que o cache
       # entrega é outra coisa: o relatório ainda tem história quando a coleta
